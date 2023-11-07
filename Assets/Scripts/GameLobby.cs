@@ -165,7 +165,7 @@ public class GameLobby : Singleton<GameLobby>
             var player = GetPlayer();
             
             var shouldUpdateLobbyName = string.IsNullOrWhiteSpace(lobbyData.LobbyName);
-            
+            var lobbyName = shouldUpdateLobbyName ? $"{player.Data["PlayerName"].Value}'s Lobby" : lobbyData.LobbyName;
             _destroyLobbyAfterSessionStarted = !lobbyData.KeepLobbyAlive;
             HasCustomConnection = lobbyData.CustomConnections;
             NumbersOfCustomConnections = lobbyData.CustomMaxConnections;
@@ -177,10 +177,7 @@ public class GameLobby : Singleton<GameLobby>
                 IsPrivate = !lobbyData.IsPublicLobby,
                 Data = new Dictionary<string, DataObject>
                 {
-                    {
-                        "LOBBY_NAME", new DataObject(DataObject.VisibilityOptions.Member,
-                            shouldUpdateLobbyName ? $"{player.Data["PlayerName"].Value}'s Lobby" : lobbyData.LobbyName)
-                    },
+                    { "LOBBY_NAME", new DataObject(DataObject.VisibilityOptions.Member, lobbyName) },
                     { "START_GAME", new DataObject(DataObject.VisibilityOptions.Member, "0") },
                     { "PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, "0") },
                     /*{
@@ -193,7 +190,7 @@ public class GameLobby : Singleton<GameLobby>
             if (lobbyData.HasPassword)
                 options.Password = lobbyData.Password;
             
-            var lobby = await LobbyService.Instance.CreateLobbyAsync(lobbyData.LobbyName, lobbyData.MaxLobbyPlayers,options);
+            var lobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, lobbyData.MaxLobbyPlayers,options);
 
             _lobbyIsBeingCreated = false;
             
@@ -542,16 +539,6 @@ public class GameLobby : Singleton<GameLobby>
     #endregion
 
     #endregion
-
-    private void OnDestroy()
-    {
-        if(LobbyInstance == null) return;
-        
-        if (IsLobbyHost())
-            DestroyLobby();
-        else
-            LeaveLobby();
-    }
 }
 
 public struct LobbyData

@@ -68,8 +68,8 @@ namespace UI.States
         {
             if (!_shouldResetData) return;
             
-            _lobbyMaxPlayersField.text = "0";
-            _lobbyMaxConnectionsNameField.text = "0";
+            _lobbyMaxPlayersField.text = "2";
+            _lobbyMaxConnectionsNameField.text = "2";
             
             _protectedLobby.isOn = false;
             _lobbyPassField.gameObject.SetActive(_protectedLobby.isOn);
@@ -127,16 +127,20 @@ namespace UI.States
             _createLobby.onClick.RemoveAllListeners();
             _createLobby.onClick.AddListener(() =>
             {
+                var maxLobbyPlayers = int.Parse(_lobbyMaxPlayersField.text) <= 0
+                    ? 1
+                    : int.Parse(_lobbyMaxPlayersField.text);
+                
                 lobbyController.LobbyData = new LobbyData
                 {
                     LobbyName = _lobbyNameField.text,
                     IsPublicLobby = _publicLobby.isOn,
                     HasPassword = _protectedLobby.isOn,
                     Password = _lobbyPassField.text,
-                    MaxLobbyPlayers = int.Parse(_lobbyMaxPlayersField.text),
+                    MaxLobbyPlayers = maxLobbyPlayers,
                     CustomConnections = _customConnections.isOn,
                     KeepLobbyAlive = _keepLobbyAlive.isOn,
-                    CustomMaxConnections = int.Parse(_lobbyMaxConnectionsNameField.text),
+                    CustomMaxConnections = int.Parse(_lobbyMaxConnectionsNameField.text) <= 0 ? maxLobbyPlayers : int.Parse(_lobbyMaxConnectionsNameField.text),
                     DestroyLobbyWithHost = _destroyLobbyWithHost.isOn
                 };
 

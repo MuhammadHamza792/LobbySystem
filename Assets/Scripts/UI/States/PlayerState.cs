@@ -278,14 +278,13 @@ namespace UI.States
             
             _lobbyController = lobbyController;
             var lobbyData = lobbyController.LobbyData;
-            
+            _lobbyCode.SetText($"{GameLobby.Instance.LobbyInstance.LobbyCode}");
             if (string.IsNullOrEmpty(lobbyData.LobbyName) || string.IsNullOrWhiteSpace(lobbyData.LobbyName))
             {
                 _lobbyName.SetText($"{GameLobby.Instance.LobbyInstance.Name}");
                 return;
             }
             _lobbyName.SetText($"{lobbyData.LobbyName}");
-            _lobbyCode.SetText($"{GameLobby.Instance.LobbyInstance.LobbyCode}");
         }
 
         public bool PrerequisiteCheck() => true;

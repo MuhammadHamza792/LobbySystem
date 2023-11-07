@@ -7,6 +7,7 @@ using UI;
 using UI.Notify;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
+using Unity.Services.Lobbies;
 using UnityEngine;
 
 public class Initialization : Singleton<Initialization> , INotifier
@@ -129,13 +130,28 @@ public class Initialization : Singleton<Initialization> , INotifier
 
         return true;
     }
-
-    private void OnDisable()
+    
+    private async void OnDisable()
     {
-        if(!IsInitialized) return;
-        AuthenticationService.Instance.SignOut();
-    }
+        if(!Instance.IsInitialized) return;
+        
+        if(GameLobby.Instance.LobbyInstance == null) return;
 
+        if (GameLobby.Instance.IsLobbyHost())
+        {
+            await LobbyService.Instance.DeleteLobbyAsync(GameLobby.Instance.LobbyInstance.Id);
+            Debug.Log("Lobby Destroyed");
+        }
+        else
+        {
+            await LobbyService.Instance.RemovePlayerAsync(GameLobby.Instance.LobbyInstance.Id, AuthenticationService.Instance.PlayerId);
+            Debug.Log("Left Lobby");
+        }
+        
+        AuthenticationService.Instance.SignOut();
+        Debug.Log("Signed Out");
+    }
+    
     public void Notify(string notifyData)
     {
         PlayerName = notifyData;
