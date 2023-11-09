@@ -51,6 +51,18 @@ namespace UI.States
                 GameLobby.OnLobbyFailedToFind += FailedToFindLobby;
 
                 GameLobby.OnHeartBeatFailedToSend += FailedToSendHeartBeat;
+
+                GameRelay.OnCreatingRelay += CreatingRelay;
+                GameRelay.OnRelayCreated += RelayCreated;
+                GameRelay.OnRelayFailedToCreate += RelayFailedToCreate;
+                
+                GameRelay.OnJoiningRelay += JoiningRelay;
+                GameRelay.OnRelayJoined += RelayJoined;
+                GameRelay.OnRelayFailedToJoined += RelayFailedToJoin;
+
+                GameRelay.OnStartingGame += StartingGame;
+                GameRelay.OnGameStarted += GameStarted;
+                GameRelay.OnGameFailedToStart += GameFailedToStart;
                     
                 _regions.onValueChanged.AddListener(RegionSelected);
             }
@@ -83,22 +95,35 @@ namespace UI.States
                 
                 GameLobby.OnHeartBeatFailedToSend -= FailedToSendHeartBeat;
                 
+                GameRelay.OnCreatingRelay -= CreatingRelay;
+                GameRelay.OnRelayCreated -= RelayCreated;
+                GameRelay.OnRelayFailedToCreate -= RelayFailedToCreate;
+                
+                GameRelay.OnJoiningRelay -= JoiningRelay;
+                GameRelay.OnRelayJoined -= RelayJoined;
+                GameRelay.OnRelayFailedToJoined -= RelayFailedToJoin;
+
+                GameRelay.OnStartingGame -= StartingGame;
+                GameRelay.OnGameStarted -= GameStarted;
+                GameRelay.OnGameFailedToStart -= GameFailedToStart;
+                
                 _regions.onValueChanged.RemoveListener(RegionSelected);
             }
-            #endregion
+            
+        #endregion
         
         private void Start()
         {
             SetRelayRegions();
             _startGame.onClick.AddListener(() =>
             {
-                //GameRelay.Instance.StartGame(_region);
+                GameRelay.Instance.StartGame(_region);
             });
             
-            _leave.onClick.AddListener(() =>
+            /*_leave.onClick.AddListener(() =>
             {
                 GameLobby.Instance.LeaveLobby();
-            });
+            });*/
             
             _copy.onClick.AddListener(() =>
             {
@@ -134,6 +159,7 @@ namespace UI.States
         {
             var currentPlayer = AuthenticationService.Instance.PlayerId;
             _regions.gameObject.SetActive(lobby.HostId == currentPlayer);
+            _startGame.gameObject.SetActive(lobby.HostId == currentPlayer);
         }
 
         #region Host
@@ -254,6 +280,73 @@ namespace UI.States
 
         #endregion
         
+        #region CreateRelay
+        
+        private void CreatingRelay()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Creating Relay",
+                this, NotifyCallType.Open);
+        }
+        private void RelayCreated()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Created",
+                this, NotifyCallType.Close);
+        }
+        private void RelayFailedToCreate(string msg)
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Failed To Create",
+                this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Error, msg,
+                this, NotifyCallType.Open);
+        }
+        
+        #endregion
+        
+        #region Join Relay
+        
+        private void JoiningRelay()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Joining Relay",
+                this, NotifyCallType.Open);
+        }
+        private void RelayJoined()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Joined",
+                this, NotifyCallType.Close);
+        }
+        private void RelayFailedToJoin(string msg)
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Failed To Join",
+                this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Error, msg,
+                this, NotifyCallType.Open);
+        }
+        
+        #endregion
+
+        #region SessionStarted
+
+        private void StartingGame()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Starting Game",
+                this, NotifyCallType.Open);
+        }
+        
+        private void GameStarted()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Game Started",
+                this, NotifyCallType.Close);
+        }
+
+        private void GameFailedToStart(string msg)
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Game Failed To Start",
+                this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Error, msg,
+                this, NotifyCallType.Open);
+        }
+        
+        #endregion
         
         private void RegionSelected(int region) => 
             _region = _regions.options[region].text == "None" ? null : _regions.options[region].text;

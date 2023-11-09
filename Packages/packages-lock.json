@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.chark.scriptable-events": {
+      "version": "https://github.com/chark/scriptable-events.git#upm",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "24c4c9bc4c585fdace4b778f1876d24033e90934"
+    },
     "com.unity.burst": {
       "version": "1.8.9",
       "depth": 2,

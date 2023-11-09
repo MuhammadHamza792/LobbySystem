@@ -15,6 +15,7 @@ namespace UI.States
         [SerializeField] private TMP_Dropdown _dropdown;
         [SerializeField] private Toggle _joinToggle;
         [SerializeField] private GameObject _lobbyPanel;
+        [SerializeField] private GameObject _loginPanel;
         
         [Header("UI InputFields")]
         [SerializeField] private TMP_InputField _searchField;
@@ -115,6 +116,8 @@ namespace UI.States
         public void HandleState(LobbyController lobbyController)
         {
             ResetState();
+            
+            _loginPanel.SetActive(false);
             
             _lobbyController = lobbyController;
             _lobbyServers.RefreshLobbies();

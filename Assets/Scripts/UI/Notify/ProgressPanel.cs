@@ -27,7 +27,7 @@ namespace UI.Notify
                     break;
                 case NotifyCallType.Close:
                     _progress.SetText($"{nData.Text}");
-                    Invoke(nameof(DisableObject), .5f);
+                    Invoke(nameof(DisableObject), .75f);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(nData.NotifyCallType), nData.NotifyCallType, null);

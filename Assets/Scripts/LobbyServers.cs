@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UI.Notify;
 using Unity.Services.Lobbies;
@@ -108,7 +109,15 @@ public class LobbyServers : MonoBehaviour, INotifier
             _fetchingLobbyTxt.SetText("Fetching Lobbies...");
             
             var response = await Lobbies.Instance.QueryLobbiesAsync(_lobbyQueries);
-            _lobbies = response.Results;
+            var allLobbies = response.Results;
+
+            var lobbiesToDiscard = allLobbies.Where(lobby => lobby.Data["START_GAME"].Value != "0" &&
+                                                             lobby.Data["DestroyLobbyAfterSession"].Value == "true").ToList();
+
+            foreach (var lobby in allLobbies.Where(lobby => !lobbiesToDiscard.Contains(lobby)))
+            {
+                _lobbies.Add(lobby);
+            }
             
             if (_lobbies.Count == 0)
                 _fetchingLobbyTxt.SetText("No Lobbies Found!");

@@ -15,8 +15,13 @@ public class Initialization : Singleton<Initialization> , INotifier
     public bool IsInitialized { private set; get; }
 
     [SerializeField] private bool _askForPlayersName;
-    [SerializeField] private CanvasToggler _loginCanvas;
-    [SerializeField] private CanvasToggler _lobbyCanvas;
+
+    public static event Action OnInitializing;
+    public static event Action OnInitialized;
+    public static event Action<string> OnFailedToInitialize;
+    public static event Action OnSigningIn;
+    public static event Action OnSignedIn;
+    public static event Action<string> OnFailedToSignIn;
     
     public string PlayerName { private set; get; }
     
@@ -56,18 +61,15 @@ public class Initialization : Singleton<Initialization> , INotifier
         
         try
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Signing Into Unity Services",
-                this, NotifyCallType.Open);
+            OnSigningIn?.Invoke();
             
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
-
-            NotificationHelper.SendNotification(NotificationType.Progress, "Signed In",
-                this, NotifyCallType.Close);
             
+            OnSignedIn?.Invoke();
             _signingIn = false;
+            
             Debug.Log("Sign in anonymously succeeded!");
             IsInitialized = true;
-            ToggleLobbyCanvas(true);
             // Shows how to get the playerID
             Debug.Log($"PlayerID: {AuthenticationService.Instance.PlayerId}"); 
 
@@ -78,10 +80,7 @@ public class Initialization : Singleton<Initialization> , INotifier
             // Notify the player with the proper error message
             _signingIn = false;
             IsInitialized = false;
-
-            NotificationHelper.SendNotification(NotificationType.Error, ex.Message, this, NotifyCallType.Open);
-            
-            ToggleLobbyCanvas(false);
+            OnFailedToSignIn?.Invoke(ex.Message);
             Debug.LogException(ex);
             return;
         }
@@ -92,50 +91,43 @@ public class Initialization : Singleton<Initialization> , INotifier
             IsInitialized = false;
             _signingIn = false;
             
-            NotificationHelper.SendNotification(NotificationType.Error, ex.Message, this, NotifyCallType.Open);
-            
-            ToggleLobbyCanvas(false);
+            OnFailedToSignIn?.Invoke(ex.Message);
             Debug.LogException(ex);
             return;
         }
     }
-
-    private void ToggleLobbyCanvas(bool active)
-    {
-        _loginCanvas.ToggleCanvas(!active);
-        _lobbyCanvas.ToggleCanvas(active);
-    }
-
+    
     private async Task<bool> InitializingServices()
     {
         try
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Initializing",
-                this, NotifyCallType.Open);
-
+            OnInitializing?.Invoke();
+            
             await UnityServices.InitializeAsync();
 
-            NotificationHelper.SendNotification(NotificationType.Progress, "Initialized",
-                this, NotifyCallType.Close);
+            OnInitialized?.Invoke();
         }
         catch (Exception ex)
         {
             _signingIn = false;
             IsInitialized = false;
 
-            NotificationHelper.SendNotification(NotificationType.Error, ex.Message, this, NotifyCallType.Open);
-            
+            OnFailedToInitialize?.Invoke(ex.Message);
             return false;
         }
 
         return true;
     }
     
-    private async void OnDisable()
+    //private async void OnDisable() => await DisconnectPLayer();
+
+    private async void OnApplicationQuit() => await DisconnectPLayer();
+
+    private async Task DisconnectPLayer()
     {
-        if(!Instance.IsInitialized) return;
-        
-        if(GameLobby.Instance.LobbyInstance == null) return;
+        if (!Instance.IsInitialized) return;
+
+        if (GameLobby.Instance.LobbyInstance == null) return;
 
         if (GameLobby.Instance.IsLobbyHost())
         {
@@ -144,14 +136,15 @@ public class Initialization : Singleton<Initialization> , INotifier
         }
         else
         {
-            await LobbyService.Instance.RemovePlayerAsync(GameLobby.Instance.LobbyInstance.Id, AuthenticationService.Instance.PlayerId);
+            await LobbyService.Instance.RemovePlayerAsync(GameLobby.Instance.LobbyInstance.Id,
+                AuthenticationService.Instance.PlayerId);
             Debug.Log("Left Lobby");
         }
-        
+
         AuthenticationService.Instance.SignOut();
         Debug.Log("Signed Out");
     }
-    
+
     public void Notify(string notifyData)
     {
         PlayerName = notifyData;

@@ -68,8 +68,8 @@ namespace UI.Notify
         private void OnDisable()
         {
             if(_notificationsCo != null) StopCoroutine(_notificationsCo);
-            if(_notifyQueue.Count > 0) _notifyQueue.Clear();
-            if(_bufferQueue.Count > 0) _bufferQueue.Clear();
+            if(_notifyQueue is {Count : > 0}) _notifyQueue.Clear();
+            if(_bufferQueue is {Count : > 0}) _bufferQueue.Clear();
         }
 
         public void HandleNotificationPanel(NotificationData nData)

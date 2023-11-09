@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 405791147261271473}
   - component: {fileID: 8676140100897940625}
+  - component: {fileID: 5886385923899783737}
   m_Layer: 0
   m_Name: Lobby
   m_TagString: Untagged
@@ -44,5 +45,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 010d4415a44c9eb498722bb76232c267, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _lobbyRefreshTime: 25
+  _destroyLobbyWithHost: 0
+  _lobbyRefreshTime: 15
   _destroyLobbyAfterSessionStarted: 0
+--- !u!114 &5886385923899783737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7025187513573554002}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2300d56ac22446e59de6de2fb87235d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scriptableEvent: {fileID: 0}
+  scriptableEvents:
+  - {fileID: 11400000, guid: 78625b6bc2beade46922fc0a79a6b73e, type: 2}
+  onRaised:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 8676140100897940625}
+        m_TargetAssemblyTypeName: GameLobby, Assembly-CSharp
+        m_MethodName: LeaveLobby
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2

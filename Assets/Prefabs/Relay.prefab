@@ -46,6 +46,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _setCustomRelaySize: 1
   _relaySize: 20
+  _loadSeparateGameScene: 1
+  _sceneToLoad: GameSession
   _regions:
   - None
   - "Montr\xE9al"
