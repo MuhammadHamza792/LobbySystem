@@ -187,8 +187,8 @@ public class GameLobby : Singleton<GameLobby>
                 Data = new Dictionary<string, DataObject>
                 {
                     { "LOBBY_NAME", new DataObject(DataObject.VisibilityOptions.Member, lobbyName)},
-                    {"DestroyLobbyAfterSession",new DataObject(DataObject.VisibilityOptions.Member, destroyLobbyAfterSession)},
-                    { "START_GAME", new DataObject(DataObject.VisibilityOptions.Member, "0") },
+                    {"DestroyLobbyAfterSession",new DataObject(DataObject.VisibilityOptions.Public, destroyLobbyAfterSession)},
+                    { "START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0") },
                     { "PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, "0") },
                     /*{
                         "HOST_PLOT_DATA",
