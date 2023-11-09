@@ -70,7 +70,13 @@ namespace UI
         {
             await Helper.LoadSceneAsync(() =>
             {
-                CheckAndChangeState(GameLobby.Instance.LobbyInstance != null ? "PlayerPanel" : "LoginPanel");
+                var shouldOpenPlayerPanel = false;
+                if (GameLobby.Instance.LobbyInstance != null)
+                {
+                    shouldOpenPlayerPanel = GameLobby.Instance.LobbyInstance.Data["DestroyLobbyAfterSession"].Value != "true";
+                }
+                
+                CheckAndChangeState(shouldOpenPlayerPanel ? "PlayerPanel" : "LoginPanel");
                 _lobbyPanel.SetActive(true);
                 return true;
             }, "Lobby");
@@ -88,7 +94,7 @@ namespace UI
 
         private void Start()
         {
-            _leaveButton.onClick.AddListener(LeaveSession);
+            //_leaveButton.onClick.AddListener(LeaveSession);
             _leaveButton.gameObject.SetActive(false);
         }
 

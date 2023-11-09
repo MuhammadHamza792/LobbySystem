@@ -5,6 +5,7 @@ using ParrelSync;
 #endif
 using UI;
 using UI.Notify;
+using Unity.Netcode;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Lobbies;
@@ -15,7 +16,7 @@ public class Initialization : Singleton<Initialization> , INotifier
     public bool IsInitialized { private set; get; }
 
     [SerializeField] private bool _askForPlayersName;
-
+    
     public static event Action OnInitializing;
     public static event Action OnInitialized;
     public static event Action<string> OnFailedToInitialize;
@@ -26,7 +27,7 @@ public class Initialization : Singleton<Initialization> , INotifier
     public string PlayerName { private set; get; }
     
     private bool _signingIn;
-
+    
     private void Start()
     {
         var options = new InitializationOptions();
@@ -70,6 +71,7 @@ public class Initialization : Singleton<Initialization> , INotifier
             
             Debug.Log("Sign in anonymously succeeded!");
             IsInitialized = true;
+            
             // Shows how to get the playerID
             Debug.Log($"PlayerID: {AuthenticationService.Instance.PlayerId}"); 
 

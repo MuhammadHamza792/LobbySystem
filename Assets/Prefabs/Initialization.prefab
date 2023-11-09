@@ -44,6 +44,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 545ac2d07df57a14d8a06dd9c60e3959, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _networkManager: {fileID: 8222277060538227309, guid: 6f7e0cf77c03d0948a579bfe188f662d, type: 3}
   _askForPlayersName: 1
-  _loginCanvas: {fileID: 0}
-  _lobbyCanvas: {fileID: 0}

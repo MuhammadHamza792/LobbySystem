@@ -55,12 +55,16 @@ public class GameLobby : Singleton<GameLobby>
 
     #endregion
     
+    [ShowInInspector]
     public Lobby LobbyInstance { private set; get; }
     public bool DestroyLobbyAfterSessionStarted => _destroyLobbyAfterSessionStarted;
     
     private float _heartBeatTimer;
     private float _lobbyPollTimer;
     private bool _sessionStarted;
+    private bool _getLobby;
+    private int _maxTries = 3;
+    private int _tries;
 
     #region UnityFuctions
     
@@ -99,6 +103,7 @@ public class GameLobby : Singleton<GameLobby>
     private async void HandleLobbyState()
     {
         if(LobbyInstance == null) return;
+        if(GameRelay.Instance.SessionStarted) return;
         
         _lobbyPollTimer -= Time.deltaTime;
         if (!(_lobbyPollTimer < 0f)) return;
@@ -108,16 +113,30 @@ public class GameLobby : Singleton<GameLobby>
         try
         {
             //Debug.Log(LobbyInstance.Id);
-            var lobby = await LobbyService.Instance.GetLobbyAsync(LobbyInstance.Id);
-            LobbyInstance = lobby;
+            if (!_getLobby)
+            {
+                _getLobby = true;
+                var lobby = await LobbyService.Instance.GetLobbyAsync(LobbyInstance.Id);
+                _tries = 0;
+                LobbyInstance = lobby;
+                _getLobby = false;
+            }
+            
         }
         catch (LobbyServiceException e)
         {
-            LobbyInstance = null;
-            OnLobbyFailedToFind?.Invoke();
+            _tries++;
+            _getLobby = false;
+            if (_tries >= _maxTries)
+            {
+                LobbyInstance = null;
+                OnLobbyFailedToFind?.Invoke();
+            }
             Debug.Log(e);
             return;
         }
+        
+        if(LobbyInstance == null) return;
         
         if (!CheckPlayerIsInLobby())
         {
@@ -330,13 +349,13 @@ public class GameLobby : Singleton<GameLobby>
 
             var lobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyID, options);
 
-            LobbyInstance = lobby;
-            _isJoiningLobby = false;
-            
             if (shouldUpdateUI)
             {
                 OnLobbyJoined?.Invoke(lobby, this);
             }
+            
+            LobbyInstance = lobby;
+            _isJoiningLobby = false;
         }
         
         catch (LobbyServiceException e)
@@ -399,6 +418,7 @@ public class GameLobby : Singleton<GameLobby>
         
         try
         {
+            Debug.Log("Updating Lobby");
             var lobby = await Lobbies.Instance.UpdateLobbyAsync(lobbyId, lobbyOptions);
             LobbyInstance = lobby;
             _isUpdatingLobby = false;
@@ -424,7 +444,7 @@ public class GameLobby : Singleton<GameLobby>
     private bool _hostHasLeftLobby;
     
     [Button]
-    public void LeaveLobby()
+    public void LeaveLobby(Action onComplete = null)
     {
         if (_isLeavingLobby) { return; }
 
@@ -438,8 +458,12 @@ public class GameLobby : Singleton<GameLobby>
             var playerId = AuthenticationService.Instance.PlayerId;
             if (_hostHasLeftLobby && _destroyLobbyWithHost)
             {
-                DestroyLobby();
-                _isLeavingLobby = false;
+                OnLobbyLeft?.Invoke(LobbyInstance, this);
+                DestroyLobby(() =>
+                {
+                    _isLeavingLobby = false;
+                    onComplete?.Invoke();
+                });
                 return;
             }
             
@@ -448,6 +472,7 @@ public class GameLobby : Singleton<GameLobby>
                 _isLeavingLobby = false;
                 LobbyInstance = null;
                 OnLobbyLeft?.Invoke(LobbyInstance, this);
+                onComplete?.Invoke();
             } );
         }
         catch (LobbyServiceException e)
@@ -532,9 +557,9 @@ public class GameLobby : Singleton<GameLobby>
             await LobbyService.Instance.DeleteLobbyAsync(LobbyInstance.Id);
                 
             LobbyInstance = null;
-            _isDestroyingLobby = false;
             OnLobbyDestroyed?.Invoke();
             onComplete?.Invoke();
+            _isDestroyingLobby = false;
         }
         catch (LobbyServiceException e)
         {

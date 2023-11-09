@@ -120,10 +120,10 @@ namespace UI.States
                 GameRelay.Instance.StartGame(_region);
             });
             
-            /*_leave.onClick.AddListener(() =>
+            _leave.onClick.AddListener(() =>
             {
                 GameLobby.Instance.LeaveLobby();
-            });*/
+            });
             
             _copy.onClick.AddListener(() =>
             {
@@ -284,6 +284,7 @@ namespace UI.States
         
         private void CreatingRelay()
         {
+            _leave.interactable = false;
             NotificationHelper.SendNotification(NotificationType.Progress, "Creating Relay",
                 this, NotifyCallType.Open);
         }
@@ -294,6 +295,7 @@ namespace UI.States
         }
         private void RelayFailedToCreate(string msg)
         {
+            _leave.interactable = true;
             NotificationHelper.SendNotification(NotificationType.Progress, "Relay Failed To Create",
                 this, NotifyCallType.Close);
             NotificationHelper.SendNotification(NotificationType.Error, msg,
@@ -306,6 +308,7 @@ namespace UI.States
         
         private void JoiningRelay()
         {
+            _leave.interactable = false;
             NotificationHelper.SendNotification(NotificationType.Progress, "Joining Relay",
                 this, NotifyCallType.Open);
         }
@@ -316,6 +319,7 @@ namespace UI.States
         }
         private void RelayFailedToJoin(string msg)
         {
+            _leave.interactable = true;
             NotificationHelper.SendNotification(NotificationType.Progress, "Relay Failed To Join",
                 this, NotifyCallType.Close);
             NotificationHelper.SendNotification(NotificationType.Error, msg,
@@ -334,12 +338,14 @@ namespace UI.States
         
         private void GameStarted()
         {
+            _leave.interactable = true;
             NotificationHelper.SendNotification(NotificationType.Progress, "Game Started",
                 this, NotifyCallType.Close);
         }
 
         private void GameFailedToStart(string msg)
         {
+            _leave.interactable = true;
             NotificationHelper.SendNotification(NotificationType.Progress, "Game Failed To Start",
                 this, NotifyCallType.Close);
             NotificationHelper.SendNotification(NotificationType.Error, msg,
@@ -371,10 +377,13 @@ namespace UI.States
             
             _lobbyController = lobbyController;
             var lobbyData = lobbyController.LobbyData;
-            _lobbyCode.SetText($"{GameLobby.Instance.LobbyInstance.LobbyCode}");
+            if(GameLobby.Instance == null) return;
+            var gameLobby = GameLobby.Instance;
+            if(gameLobby.LobbyInstance == null) return;
+            _lobbyCode.SetText($"{gameLobby.LobbyInstance.LobbyCode}");
             if (string.IsNullOrEmpty(lobbyData.LobbyName) || string.IsNullOrWhiteSpace(lobbyData.LobbyName))
             {
-                _lobbyName.SetText($"{GameLobby.Instance.LobbyInstance.Name}");
+                _lobbyName.SetText($"{gameLobby.LobbyInstance.Name}");
                 return;
             }
             _lobbyName.SetText($"{lobbyData.LobbyName}");
