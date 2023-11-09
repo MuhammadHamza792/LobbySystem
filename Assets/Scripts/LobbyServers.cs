@@ -110,14 +110,18 @@ public class LobbyServers : MonoBehaviour, INotifier
             
             var response = await Lobbies.Instance.QueryLobbiesAsync(_lobbyQueries);
             var allLobbies = response.Results;
-
-            var lobbiesToDiscard = allLobbies.Where(lobby => lobby.Data["START_GAME"].Value != "0" &&
-                                                             lobby.Data["DestroyLobbyAfterSession"].Value == "true").ToList();
-
-            foreach (var lobby in allLobbies.Where(lobby => !lobbiesToDiscard.Contains(lobby)))
+            
+            if (allLobbies != null)
             {
-                _lobbies.Add(lobby);
+                foreach (var lobby in allLobbies)
+                {
+                    if (lobby == null) continue;
+                    if(lobby.Data["START_GAME"].Value != "0" && 
+                       lobby.Data["DestroyLobbyAfterSession"].Value == "true") return;
+                    _lobbies.Add(lobby);
+                }
             }
+            
             
             if (_lobbies.Count == 0)
                 _fetchingLobbyTxt.SetText("No Lobbies Found!");
