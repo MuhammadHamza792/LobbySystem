@@ -117,7 +117,7 @@ public class LobbyServers : MonoBehaviour, INotifier
                 {
                     if (lobby == null) continue;
                     if(lobby.Data["START_GAME"].Value != "0" && 
-                       lobby.Data["DestroyLobbyAfterSession"].Value == "true") return;
+                       lobby.Data["DestroyLobbyAfterSession"].Value == "true") continue;
                     _lobbies.Add(lobby);
                 }
             }
@@ -163,6 +163,9 @@ public class LobbyServers : MonoBehaviour, INotifier
         {
             Destroy(lobby.gameObject);
         }
+        
+        if(_lobbies.Count > 0)
+            _lobbies.Clear();
         
         if(_lobbyObjects.Count > 0)
             _lobbyObjects.Clear();

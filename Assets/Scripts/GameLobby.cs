@@ -439,6 +439,7 @@ public class GameLobby : Singleton<GameLobby>
             if (_hostHasLeftLobby && _destroyLobbyWithHost)
             {
                 DestroyLobby();
+                _isLeavingLobby = false;
                 return;
             }
             
