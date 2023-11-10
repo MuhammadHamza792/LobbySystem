@@ -130,6 +130,13 @@ namespace UI.States
                 var maxLobbyPlayers = int.Parse(_lobbyMaxPlayersField.text) <= 0
                     ? 1
                     : int.Parse(_lobbyMaxPlayersField.text);
+
+                if (int.Parse(_lobbyMaxConnectionsNameField.text) > 100)
+                {
+                    NotificationHelper.SendNotification(NotificationType.Error, "Number of custom Connections can't exceed 100.",
+                        this, NotifyCallType.Open);
+                    return;
+                }
                 
                 lobbyController.LobbyData = new LobbyData
                 {

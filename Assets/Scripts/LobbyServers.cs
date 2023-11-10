@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using TMPro;
 using UI.Notify;
 using Unity.Services.Lobbies;
@@ -24,6 +25,7 @@ public class LobbyServers : MonoBehaviour, INotifier
     private QueryLobbiesOptions _lobbyQueries = new ();
     
     private bool _isRefreshingLobbies;
+    private float _lobbyPollTimer;
 
     private void OnEnable()
     {
@@ -94,49 +96,36 @@ public class LobbyServers : MonoBehaviour, INotifier
     private void Start() => 
         _refreshBtn.onClick.AddListener(RefreshLobbies);
 
+    private void Update()
+    {
+        _lobbyPollTimer -= Time.deltaTime;
+        if (!(_lobbyPollTimer < 0f)) return;
+        var lobbyPollTimerMax = 1.75f;
+        _lobbyPollTimer = lobbyPollTimerMax;
+        
+        RefreshLobbies();
+    }
+
     public async void RefreshLobbies()
     {
         if(_isRefreshingLobbies) return;
         _isRefreshingLobbies = true;
 
-        _lobbies ??= new List<Lobby>();
-        _lobbyObjects ??= new List<LobbyObject>();
-        ClearLobbies();
-        
-        try
-        {
-            _fetchingLobbyTxt.gameObject.SetActive(true);
-            _fetchingLobbyTxt.SetText("Fetching Lobbies...");
-            
-            var response = await Lobbies.Instance.QueryLobbiesAsync(_lobbyQueries);
-            var allLobbies = response.Results;
-            
-            if (allLobbies != null)
-            {
-                foreach (var lobby in allLobbies)
-                {
-                    if (lobby == null) continue;
-                    if(lobby.Data["START_GAME"].Value != "0" && 
-                       lobby.Data["DestroyLobbyAfterSession"].Value == "true") continue;
-                    _lobbies.Add(lobby);
-                }
-            }
-            
-            
-            if (_lobbies.Count == 0)
-                _fetchingLobbyTxt.SetText("No Lobbies Found!");
-            else
-                _fetchingLobbyTxt.gameObject.SetActive(false);
-        }
-        catch (LobbyServiceException e)
-        {
-            NotificationHelper.SendNotification(NotificationType.Error, e.Message, this, NotifyCallType.Open);
-            _isRefreshingLobbies = false;
-            Debug.Log(e);
-            throw;
-        }
+        await FetchLobbies();
 
         _serversCount.SetText($"{_lobbies.Count}");
+
+        if (_lobbies.Count == _lobbyObjects.Count)
+        {
+            _isRefreshingLobbies = false;
+            return;
+        }
+        
+        ClearLobbies();
+        
+        _fetchingLobbyTxt.gameObject.SetActive(true);
+        _fetchingLobbyTxt.SetText("Fetching Lobbies...");
+        
         
         foreach (var lobby in _lobbies)
         {
@@ -154,7 +143,52 @@ public class LobbyServers : MonoBehaviour, INotifier
             _lobbyObjects.Add(lobbyObject);
         }
         
+        if (_lobbies.Count == 0)
+            _fetchingLobbyTxt.SetText("No Lobbies Found!");
+        else
+            _fetchingLobbyTxt.gameObject.SetActive(false);
+        
         _isRefreshingLobbies = false;
+    }
+
+    private async Task FetchLobbies()
+    {
+        _lobbies ??= new List<Lobby>();
+        _lobbyObjects ??= new List<LobbyObject>();
+        
+        try
+        {
+            var response = await Lobbies.Instance.QueryLobbiesAsync(_lobbyQueries);
+            var allLobbies = response.Results;
+
+            var filteredLobbies = allLobbies.Where(lobby => lobby.Data["START_GAME"].Value == "0" ||
+                                                            lobby.Data["DestroyLobbyAfterSession"].Value != "true").ToList();
+            
+            if (filteredLobbies.Count != _lobbies.Count)
+            {
+                if(_lobbies.Count > 0)
+                    _lobbies.Clear();
+                
+                foreach (var lobby in filteredLobbies)
+                {
+                    if (lobby == null) continue;
+                    _lobbies.Add(lobby);
+                }
+            }
+            
+            if (_lobbies.Count == 0)
+                _fetchingLobbyTxt.SetText("No Lobbies Found!");
+            else
+                _fetchingLobbyTxt.gameObject.SetActive(false);
+            
+        }
+        catch (LobbyServiceException e)
+        {
+            NotificationHelper.SendNotification(NotificationType.Error, e.Message, this, NotifyCallType.Open);
+            _isRefreshingLobbies = false;
+            Debug.Log(e);
+            throw;
+        }
     }
 
     private void ClearLobbies()
@@ -163,9 +197,6 @@ public class LobbyServers : MonoBehaviour, INotifier
         {
             Destroy(lobby.gameObject);
         }
-        
-        if(_lobbies.Count > 0)
-            _lobbies.Clear();
         
         if(_lobbyObjects.Count > 0)
             _lobbyObjects.Clear();

@@ -65,6 +65,7 @@ public class GameLobby : Singleton<GameLobby>
     private bool _getLobby;
     private int _maxTries = 3;
     private int _tries;
+    private bool _canInteractWithLobby;
 
     #region UnityFuctions
     
@@ -116,8 +117,10 @@ public class GameLobby : Singleton<GameLobby>
             if (!_getLobby)
             {
                 _getLobby = true;
+                _canInteractWithLobby = false;
                 var lobby = await LobbyService.Instance.GetLobbyAsync(LobbyInstance.Id);
                 _tries = 0;
+                _canInteractWithLobby = true;
                 LobbyInstance = lobby;
                 _getLobby = false;
             }
@@ -127,6 +130,7 @@ public class GameLobby : Singleton<GameLobby>
         {
             _tries++;
             _getLobby = false;
+            _canInteractWithLobby = false;
             if (_tries >= _maxTries)
             {
                 LobbyInstance = null;
@@ -374,6 +378,8 @@ public class GameLobby : Singleton<GameLobby>
     
     public void ChangeHost(Player player)
     {
+        if(!_canInteractWithLobby) return;
+        
         if(_isChangingHost) return;
         _isChangingHost = true;
 
@@ -446,6 +452,8 @@ public class GameLobby : Singleton<GameLobby>
     [Button]
     public void LeaveLobby(Action onComplete = null)
     {
+        if(!_canInteractWithLobby) return;
+        
         if (_isLeavingLobby) { return; }
 
         _isLeavingLobby = true;
@@ -486,6 +494,8 @@ public class GameLobby : Singleton<GameLobby>
     }
     public void KickAPlayer(Player player)
     {
+        if(!_canInteractWithLobby) return;
+        
         if(_isKickingPlayer) return;
         _isKickingPlayer = true;
         
