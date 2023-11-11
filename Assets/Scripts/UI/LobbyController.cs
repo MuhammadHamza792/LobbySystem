@@ -39,10 +39,10 @@ namespace UI
         private void OnEnable()
         {
             _lobbyPanel.SetActive(false);
-            NetworkController.OnSessionLeft += EnableLobbyButton;
-            NetworkController.OnLeavingSession += LeavingSession;
-            NetworkController.OnSessionLeft += SessionLeft;
-            GameRelay.OnGameStarted += EnableLeaveButton;
+            GameNetworkHandler.OnSessionLeft += EnableLobbyButton;
+            GameNetworkHandler.OnLeavingSession += LeavingSession;
+            GameNetworkHandler.OnSessionLeft += SessionLeft;
+            GameNetworkHandler.OnGameStarted += EnableLeaveButton;
         }
 
         private void EnableLeaveButton()
@@ -86,10 +86,10 @@ namespace UI
 
         private void OnDisable()
         {
-            NetworkController.OnSessionLeft -= EnableLobbyButton;
-            NetworkController.OnLeavingSession -= EnableLobbyButton;
-            NetworkController.OnSessionLeft -= EnableLobbyButton;
-            GameRelay.OnGameStarted -= EnableLeaveButton;
+            GameNetworkHandler.OnSessionLeft -= EnableLobbyButton;
+            GameNetworkHandler.OnLeavingSession -= LeavingSession;
+            GameNetworkHandler.OnSessionLeft -= SessionLeft;
+            GameNetworkHandler.OnGameStarted -= EnableLeaveButton;
         }
 
         private void Start()

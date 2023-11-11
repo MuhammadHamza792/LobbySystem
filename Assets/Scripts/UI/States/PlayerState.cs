@@ -60,9 +60,9 @@ namespace UI.States
                 GameRelay.OnRelayJoined += RelayJoined;
                 GameRelay.OnRelayFailedToJoined += RelayFailedToJoin;
 
-                GameRelay.OnStartingGame += StartingGame;
-                GameRelay.OnGameStarted += GameStarted;
-                GameRelay.OnGameFailedToStart += GameFailedToStart;
+                GameNetworkHandler.OnStartingGame += StartingGame;
+                GameNetworkHandler.OnGameStarted += GameStarted;
+                GameNetworkHandler.OnGameFailedToStart += GameFailedToStart;
                     
                 _regions.onValueChanged.AddListener(RegionSelected);
             }
@@ -103,9 +103,9 @@ namespace UI.States
                 GameRelay.OnRelayJoined -= RelayJoined;
                 GameRelay.OnRelayFailedToJoined -= RelayFailedToJoin;
 
-                GameRelay.OnStartingGame -= StartingGame;
-                GameRelay.OnGameStarted -= GameStarted;
-                GameRelay.OnGameFailedToStart -= GameFailedToStart;
+                GameNetworkHandler.OnStartingGame -= StartingGame;
+                GameNetworkHandler.OnGameStarted -= GameStarted;
+                GameNetworkHandler.OnGameFailedToStart -= GameFailedToStart;
                 
                 _regions.onValueChanged.RemoveListener(RegionSelected);
             }
@@ -117,7 +117,7 @@ namespace UI.States
             SetRelayRegions();
             _startGame.onClick.AddListener(() =>
             {
-                GameRelay.Instance.StartGame(_region);
+                GameNetworkHandler.Instance.StartGame(_region);
             });
             
             _leave.onClick.AddListener(() =>
@@ -158,8 +158,10 @@ namespace UI.States
         private void SyncLobbyUI(Lobby lobby)
         {
             var currentPlayer = AuthenticationService.Instance.PlayerId;
-            _regions.gameObject.SetActive(lobby.HostId == currentPlayer);
-            _startGame.gameObject.SetActive(lobby.HostId == currentPlayer);
+            var isHost = lobby.HostId == currentPlayer;
+            _regions.gameObject.SetActive(isHost);
+            _startGame.gameObject.SetActive(isHost);
+            _lobbyCode.gameObject.SetActive(isHost);
         }
 
         #region Host

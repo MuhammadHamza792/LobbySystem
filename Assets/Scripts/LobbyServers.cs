@@ -100,7 +100,7 @@ public class LobbyServers : MonoBehaviour, INotifier
     {
         _lobbyPollTimer -= Time.deltaTime;
         if (!(_lobbyPollTimer < 0f)) return;
-        var lobbyPollTimerMax = 1.75f;
+        var lobbyPollTimerMax = 2f;
         _lobbyPollTimer = lobbyPollTimerMax;
         
         RefreshLobbies();

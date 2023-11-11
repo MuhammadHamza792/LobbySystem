@@ -1,6 +1,6 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Unity.Netcode;
@@ -9,79 +9,70 @@ using Unity.Networking.Transport.Relay;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
-using Unity.Services.Relay.Models;
 using UnityEngine;
 
-public class GameRelay : Singleton<GameRelay>
+public class GameNetworkHandler : Singleton<GameNetworkHandler>
 {
-    [SerializeField] private List<string> _regions;
-
-    public ReadOnlyCollection<string> Regions => new (_regions);
+    [SerializeField] private bool _setCustomRelaySize;
+    [SerializeField] private int _relaySize;
+    [SerializeField] private bool _loadSeparateGameScene;
+    [SerializeField] private string _sceneToLoad;
     
-    public string RelayCode { private set; get; }
+    public static event Action OnStartingGame;
+    public static  Action OnGameStarted;
+    public static event Action<string> OnGameFailedToStart;
     
-    #region Events
-
-    public static event Action OnCreatingRelay; 
-    public static event Action OnRelayCreated; 
-    public static event Action<string> OnRelayFailedToCreate; 
+    public static event Action OnLeavingSession;
+    public static event Action OnSessionLeft;
     
-    public static event Action OnJoiningRelay; 
-    public static event Action OnRelayJoined; 
-    public static event Action<string> OnRelayFailedToJoined;
+    public bool SessionStarted { private set; get; }
     
-    #endregion
+    private bool _serverStarted;
+    private bool _sessionLeft;
     
-    public async Task<string> CreateRelay(int maxPlayer, string region = null)
+    private void OnEnable()
     {
-        try
-        {
-            OnCreatingRelay?.Invoke();
-            
-            var relay = await Relay.Instance.CreateAllocationAsync(maxPlayer, region);
+        NetworkController.OnClientConnected += ClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback += ClientDisconnected;
+        NetworkManager.Singleton.OnClientStopped += ClientStopped;
+    }
 
-            RelayCode = await Relay.Instance.GetJoinCodeAsync(relay.AllocationId);
-            
-            var serverData = new RelayServerData(relay, "dtls");
-            
-            NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(serverData);
-            
-            OnRelayCreated?.Invoke();
-            
-            return RelayCode;
-        }
-        catch (RelayServiceException e)
+    private void Update()
+    {
+        if (!NetworkManager.Singleton.ShutdownInProgress)
         {
-            OnRelayFailedToCreate?.Invoke(e.Message);
-            Debug.Log(e);
-            throw;
+            _sessionLeft = false;
+            return;
         }
+        if(_sessionLeft) return;
+        _sessionLeft = true;
+        NetworkManager.Singleton.Shutdown();
+    }
+
+    private void OnDisable()
+    {
+        NetworkController.OnClientConnected -= ClientConnected;
+        if(NetworkManager.Singleton == null) return;
+        NetworkManager.Singleton.OnClientDisconnectCallback -= ClientDisconnected;
+        NetworkManager.Singleton.OnClientStopped -= ClientStopped;
     }
     
-    public async Task<JoinAllocation> JoinRelay(string relayCode)
+    private void ClientConnected()
     {
-        try
-        {
-            OnJoiningRelay?.Invoke();
-            
-            var relayToJoin = await Relay.Instance.JoinAllocationAsync(relayCode);
-            
-            OnRelayJoined?.Invoke();
-            
-            return relayToJoin;
-        }
-        catch (RelayServiceException e)
-        {
-            OnRelayFailedToJoined?.Invoke(e.Message);
-            Debug.Log(e);
-            throw;
-        }
+        SessionStarted = true;
+        _isJoiningSession = false;
     }
     
-    /*#region StartSession
-
+    private void ClientDisconnected(ulong client)
+    {
+        if (NetworkManager.Singleton.LocalClientId != client) return;
+        NetworkManager.Singleton.Shutdown();
+    }
+    
+    
+    #region StartGame
+    
     private bool _isSessionStarting;
-    private bool _isSessionStoping;
     
     public async void StartGame(string reg = null)
     {
@@ -98,10 +89,12 @@ public class GameRelay : Singleton<GameRelay>
         _setCustomRelaySize = gameLobby.HasCustomConnection;
         _relaySize = gameLobby.NumbersOfCustomConnections;
         
+        var gameRelay = GameRelay.Instance;
+        
         try
         {
-            var selectedRegion = _regions.FirstOrDefault(region => region == reg);
-            relayCode = await CreateRelay(_setCustomRelaySize ? _relaySize :
+            var selectedRegion = gameRelay.Regions.FirstOrDefault(region => region == reg);
+            relayCode = await gameRelay.CreateRelay(_setCustomRelaySize ? _relaySize :
                 gameLobby.LobbyInstance.MaxPlayers, selectedRegion);
 
             OnStartingGame?.Invoke();
@@ -163,6 +156,10 @@ public class GameRelay : Singleton<GameRelay>
         }
         
     }
+    #endregion
+
+    #region JoinGame
+
     private bool _isJoiningSession;
     
     public async void JoinGame()
@@ -174,9 +171,11 @@ public class GameRelay : Singleton<GameRelay>
         
         var relayCode = gameLobby.LobbyInstance.Data["START_GAME"].Value;
 
+        var gameRelay = GameRelay.Instance;
+        
         try
         {
-            var relayToJoin = await JoinRelay(relayCode);
+            var relayToJoin = await gameRelay.JoinRelay(relayCode);
             
             OnStartingGame?.Invoke();
             
@@ -198,12 +197,56 @@ public class GameRelay : Singleton<GameRelay>
         
     }
 
-    private async void ClientConnected()
+    #endregion
+
+    #region LeaveGame
+
+    public void LeaveGame(bool isHost)
     {
-        SessionStarted = true;
-        _isJoiningSession = false;
+        if (isHost)
+        {
+            OnHostStopped();
+        }
+        else
+        {
+            GameLobby.Instance.LeaveLobby(() =>
+            {
+                NetworkManager.Singleton.Shutdown();
+            });  
+        }
+    }
+    
+    private async void ClientStopped(bool hostStopped)
+    {
+        if (hostStopped) return;
+        await OnClientStopped();
+    }
+    
+    private void OnHostStopped()
+    {
+        OnLeavingSession?.Invoke();
+        StopGame(() =>
+        {
+            NetworkManager.Singleton.Shutdown();
+            OnSessionLeft?.Invoke();
+        });
+    }
+    
+    private async Task OnClientStopped()
+    {
+        OnLeavingSession?.Invoke();
+        await Helper.LoadSceneAsync(() =>
+        {
+            GameNetworkHandler.Instance.StopGame(() => { OnSessionLeft?.Invoke(); });
+            return true;
+        }, "Lobby");
     }
 
+    #endregion
+    
+    #region StopGame
+    private bool _isSessionStoping;
+    
     public void StopGame(Action onComplete = null)
     {
         if(_isSessionStoping) return;
@@ -243,6 +286,5 @@ public class GameRelay : Singleton<GameRelay>
             throw;
         }
     }
-    
-    #endregion*/
+    #endregion
 }

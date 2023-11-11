@@ -104,7 +104,7 @@ public class GameLobby : Singleton<GameLobby>
     private async void HandleLobbyState()
     {
         if(LobbyInstance == null) return;
-        if(GameRelay.Instance.SessionStarted) return;
+        if(GameNetworkHandler.Instance.SessionStarted) return;
         
         _lobbyPollTimer -= Time.deltaTime;
         if (!(_lobbyPollTimer < 0f)) return;
@@ -155,10 +155,10 @@ public class GameLobby : Singleton<GameLobby>
         
         if (!IsLobbyHost())
         {
-            GameRelay.Instance.JoinGame();
+            GameNetworkHandler.Instance.JoinGame();
         }
         
-        if (_destroyLobbyAfterSessionStarted)
+        if (LobbyInstance.Data["DestroyLobbyAfterSession"].Value == "true")
         {
             LobbyInstance = null;
         }
@@ -459,6 +459,14 @@ public class GameLobby : Singleton<GameLobby>
         _isLeavingLobby = true;
         
         OnLeavingLobby?.Invoke();
+
+        if (LobbyInstance == null)
+        {
+            _isLeavingLobby = false;
+            OnLobbyLeft?.Invoke(null, this);
+            onComplete?.Invoke();
+            return;
+        }
         
         try
         {
