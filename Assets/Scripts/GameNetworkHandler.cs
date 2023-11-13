@@ -50,6 +50,7 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
     
     private void Update()
     {
+        if(GameLobby.Instance.IsLobbyHost()) return;
         if (!NetworkManager.Singleton.ShutdownInProgress)
         {
             _sessionLeft = false;
@@ -57,11 +58,7 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         }
         if(_sessionLeft) return;
         _sessionLeft = true;
-        if(GameLobby.Instance.LobbyInstance != null)
-            LeaveLobbyAndSession();
-        else
-            NetworkManager.Singleton.Shutdown();
-        
+        NetworkManager.Singleton.Shutdown();
     }
 
     private void OnDisable()
@@ -273,7 +270,7 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
     #endregion
 
     #region LeaveGame
-
+    
     public void LeaveGame(bool isHost)
     {
         if (isHost)
@@ -287,7 +284,10 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
     }
 
     private void LeaveLobbyAndSession() => GameLobby.Instance.LeaveLobby(
-        () => { NetworkManager.Singleton.Shutdown(); });
+        () =>
+        {
+            NetworkManager.Singleton.Shutdown();
+        });
 
     private async void ClientStopped(bool hostStopped)
     {
@@ -310,7 +310,10 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         OnLeavingSession?.Invoke();
         await Helper.LoadSceneAsync(() =>
         {
-            GameNetworkHandler.Instance.StopGame(() => { OnSessionLeft?.Invoke(); });
+            StopGame(() =>
+            {
+                OnSessionLeft?.Invoke();
+            });
             return true;
         }, "Lobby");
     }
@@ -328,7 +331,8 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         try
         {
             var gameLobby = GameLobby.Instance;
-            if (gameLobby.DestroyLobbyAfterSessionStarted || !gameLobby.IsLobbyHost())
+            if (gameLobby.DestroyLobbyAfterSessionStarted ||
+                !gameLobby.IsLobbyHost())
             {
                 SessionStarted = false;
                 _isSessionStoping = false;

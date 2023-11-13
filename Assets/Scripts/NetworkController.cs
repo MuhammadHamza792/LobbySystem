@@ -29,26 +29,10 @@ public class NetworkController : NetworkBehaviour
     public void LeaveGame()
     {
         Debug.Log("Leaving Session!");
-        
-        if (IsHost && IsOwner)
+
+        if (IsOwner)
         {
             GameNetworkHandler.Instance.LeaveGame(IsHost);
-            /*OnLeavingSession?.Invoke();
-            StopSession(() =>
-            {
-                NetworkManager.Singleton.Shutdown();
-                OnSessionLeft?.Invoke();
-            });*/
-            return;
-        }
-            
-        if (IsClient && IsOwner)
-        {
-            GameNetworkHandler.Instance.LeaveGame(IsHost);
-            /*GameLobby.Instance.LeaveLobby(() =>
-            {
-                NetworkManager.Singleton.Shutdown();
-            });*/
         }
     }
 
