@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Sirenix.OdinInspector;
-using UI.Notify;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
@@ -66,6 +65,7 @@ public class GameLobby : Singleton<GameLobby>
     private int _maxTries = 3;
     private int _tries;
     private bool _canInteractWithLobby;
+    private bool _destroyingLobbyAtEnd;
 
     #region UnityFuctions
     
@@ -591,6 +591,54 @@ public class GameLobby : Singleton<GameLobby>
     #endregion
 
     #endregion
+
+    private async void OnApplicationQuit()
+    {
+        if(Initialization.Instance == null) { return;}
+        
+        if (!Initialization.Instance.IsInitialized) return;
+        
+        await LeaveLobbyIfExits();
+    }
+
+    public async Task LeaveLobbyIfExits()
+    {
+        if (LobbyInstance == null) return;
+
+        if (IsLobbyHost())
+        {
+            try
+            {
+                if(_destroyingLobbyAtEnd) return;
+                _destroyingLobbyAtEnd = true;
+                await LobbyService.Instance.DeleteLobbyAsync(LobbyInstance.Id);
+                Debug.Log("Lobby Destroyed");
+                LobbyInstance = null;
+                _destroyingLobbyAtEnd = false;
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e);
+                throw;
+            }
+           
+        }
+        else
+        {
+            try
+            {
+                await LobbyService.Instance.RemovePlayerAsync(LobbyInstance.Id,
+                    AuthenticationService.Instance.PlayerId);
+                Debug.Log("Left Lobby");
+            }
+            catch (Exception e)
+            {
+                Debug.Log(e);
+                throw;
+            }
+            
+        }
+    }
 }
 
 public struct LobbyData

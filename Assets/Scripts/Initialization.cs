@@ -129,19 +129,21 @@ public class Initialization : Singleton<Initialization> , INotifier
     {
         if (!Instance.IsInitialized) return;
 
-        if (GameLobby.Instance.LobbyInstance == null) return;
+        if (GameLobby.Instance == null)
+        {
+            AuthenticationService.Instance.SignOut();
+            Debug.Log("Signed Out");
+            return;
+        }
 
-        if (GameLobby.Instance.IsLobbyHost())
+        if (GameLobby.Instance.LobbyInstance == null)
         {
-            await LobbyService.Instance.DeleteLobbyAsync(GameLobby.Instance.LobbyInstance.Id);
-            Debug.Log("Lobby Destroyed");
+            AuthenticationService.Instance.SignOut();
+            Debug.Log("Signed Out");
+            return;
         }
-        else
-        {
-            await LobbyService.Instance.RemovePlayerAsync(GameLobby.Instance.LobbyInstance.Id,
-                AuthenticationService.Instance.PlayerId);
-            Debug.Log("Left Lobby");
-        }
+
+        await GameLobby.Instance.LeaveLobbyIfExits();
 
         AuthenticationService.Instance.SignOut();
         Debug.Log("Signed Out");

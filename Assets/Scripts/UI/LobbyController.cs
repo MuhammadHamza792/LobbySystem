@@ -14,6 +14,7 @@ namespace UI
         [SerializeField] private GameObject _lobbyPanel;
         [SerializeField] private Button _lobbyButton;
         [SerializeField] private Button _leaveButton;
+        [SerializeField] private Button _exitButton;
         [SerializeField] private List<PanelData> _panelData;
 
         private PanelContext _panelContext;
@@ -39,11 +40,19 @@ namespace UI
         private void OnEnable()
         {
             _lobbyPanel.SetActive(false);
+            GameNetworkHandler.OnSessionFailedToJoin += SessionFailedToJoin;
+            GameNetworkHandler.OnSessionFailedToStart += SessionFailedToStart;
             GameNetworkHandler.OnSessionLeft += EnableLobbyButton;
             GameNetworkHandler.OnLeavingSession += LeavingSession;
             GameNetworkHandler.OnSessionLeft += SessionLeft;
             GameNetworkHandler.OnGameStarted += EnableLeaveButton;
         }
+
+        private void SessionFailedToStart() =>
+            NotificationHelper.SendNotification(NotificationType.Error, "Failed To Start Server : Timed Out", this, NotifyCallType.Open);
+
+        private void SessionFailedToJoin() => 
+            NotificationHelper.SendNotification(NotificationType.Error, "Failed To Join Server : Timed Out", this, NotifyCallType.Open);
 
         private void EnableLeaveButton()
         {
@@ -96,6 +105,7 @@ namespace UI
         {
             //_leaveButton.onClick.AddListener(LeaveSession);
             _leaveButton.gameObject.SetActive(false);
+            _exitButton.onClick.AddListener(Application.Quit);
         }
 
         [Button()]

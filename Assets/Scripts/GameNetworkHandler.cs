@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using HelperClasses;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using Unity.Networking.Transport.Relay;
@@ -21,22 +22,32 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
     public static event Action OnStartingGame;
     public static  Action OnGameStarted;
     public static event Action<string> OnGameFailedToStart;
+
+    public static event Action OnStartingSession;
+    public static event Action OnSessionStarted;
+    public static event Action OnSessionFailedToStart;
     
+    public static event Action OnJoiningSession;
+    public static event Action OnSessionJoined;
+    public static event Action OnSessionFailedToJoin;
     public static event Action OnLeavingSession;
     public static event Action OnSessionLeft;
     
     public bool SessionStarted { private set; get; }
     
     private bool _serverStarted;
+    private bool _clientStarted;
     private bool _sessionLeft;
     
     private void OnEnable()
     {
         NetworkController.OnClientConnected += ClientConnected;
+        NetworkController.OnClientConnected  += ClientStarted;
+        NetworkManager.Singleton.OnServerStarted += ServerStarted;
         NetworkManager.Singleton.OnClientDisconnectCallback += ClientDisconnected;
         NetworkManager.Singleton.OnClientStopped += ClientStopped;
     }
-
+    
     private void Update()
     {
         if (!NetworkManager.Singleton.ShutdownInProgress)
@@ -46,13 +57,19 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         }
         if(_sessionLeft) return;
         _sessionLeft = true;
-        NetworkManager.Singleton.Shutdown();
+        if(GameLobby.Instance.LobbyInstance != null)
+            LeaveLobbyAndSession();
+        else
+            NetworkManager.Singleton.Shutdown();
+        
     }
 
     private void OnDisable()
     {
         NetworkController.OnClientConnected -= ClientConnected;
+        NetworkController.OnClientConnected -= ClientStarted;
         if(NetworkManager.Singleton == null) return;
+        NetworkManager.Singleton.OnServerStarted -= ServerStarted;
         NetworkManager.Singleton.OnClientDisconnectCallback -= ClientDisconnected;
         NetworkManager.Singleton.OnClientStopped -= ClientStopped;
     }
@@ -69,15 +86,40 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         NetworkManager.Singleton.Shutdown();
     }
     
+    private void ClientStarted()
+    {
+        _isJoiningSession = false;
+        SessionStarted = true;
+        if(_startingClientTimeout == null) return;
+        if(_startingClientTimeoutCo == null) return;
+        Debug.Log("Client Timeout Coroutine Stopped");
+        StopCoroutine(_startingClientTimeoutCo);
+        _startingClientTimeout.Reset();
+    }
+    
+    private void ServerStarted()
+    {
+        Debug.Log("Server Started");
+        SessionStarted = true;
+        _isSessionStarting = false;
+        if(_startingHostTimeout == null) return;
+        if(_startingHostTimeoutCo == null) return;
+        Debug.Log("Host Timeout Coroutine Stopped");
+        StopCoroutine(_startingHostTimeoutCo);
+        _startingHostTimeout.Reset();
+    }
     
     #region StartGame
     
+    private TimeOut _startingHostTimeout;
+    private Coroutine _startingHostTimeoutCo;
     private bool _isSessionStarting;
     
     public async void StartGame(string reg = null)
     {
         if(_isSessionStarting) return;
         _isSessionStarting = true;
+        if(_startingHostTimeout is {IsTimerRunning: true}) return;
 
         var gameLobby = GameLobby.Instance;
         
@@ -98,31 +140,45 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
                 gameLobby.LobbyInstance.MaxPlayers, selectedRegion);
 
             OnStartingGame?.Invoke();
+
+            _startingHostTimeout ??= new TimeOut(10);
             
             if (_loadSeparateGameScene)
             {
                 _serverStarted = await Helper.LoadSceneAsync(() =>
                 {
-                    var serverHasStarted = NetworkManager.Singleton.StartHost();
+                    var serverHasStarted = false;
+                    _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer( () =>
+                    {
+                        OnSessionFailedToStart?.Invoke();
+                        if(serverHasStarted)
+                            NetworkManager.Singleton.Shutdown();
+                    }));
+                    serverHasStarted = NetworkManager.Singleton.StartHost();
                     return serverHasStarted;
                 }, _sceneToLoad);
                 
             }
             else
             {
+                _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer( () =>
+                {
+                    OnSessionFailedToStart?.Invoke();
+                    if(_serverStarted)
+                        NetworkManager.Singleton.Shutdown();
+                }));
                 _serverStarted = NetworkManager.Singleton.StartHost();
             }
             
             if (!_serverStarted)
             {
-                OnGameFailedToStart?.Invoke("Failed To Start Server.");
+                OnGameFailedToStart?.Invoke("Failed To Start Game.");
                 _isSessionStarting = false;
                 SessionStarted = false;
                 return;
             }
             
             //OnGameStarted?.Invoke();
-            SessionStarted = true;
         }
     
         catch (RelayServiceException e)
@@ -160,12 +216,15 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
 
     #region JoinGame
 
+    private TimeOut _startingClientTimeout;
+    private Coroutine _startingClientTimeoutCo;
     private bool _isJoiningSession;
     
     public async void JoinGame()
     {
         if(_isJoiningSession) return;
         _isJoiningSession = true;
+        if(_startingClientTimeout is { IsTimerRunning: true }) return;
 
         var gameLobby = GameLobby.Instance;
         
@@ -183,14 +242,28 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
             
             var serverData = new RelayServerData(relayToJoin, "dtls");
             NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(serverData);
-            NetworkManager.Singleton.StartClient();
-            
+            _startingClientTimeout ??= new TimeOut(10);
+            _startingClientTimeoutCo = StartCoroutine(_startingClientTimeout.StartTimer( () =>
+            {
+                OnSessionFailedToJoin?.Invoke();
+                if(_clientStarted)
+                    NetworkManager.Singleton.Shutdown();
+                GameLobby.Instance.LeaveLobby(() =>
+                {
+                    SessionStarted = false;
+                    _isJoiningSession = false;
+                });
+            }));
+            _clientStarted = NetworkManager.Singleton.StartClient();
         }
         catch (RelayServiceException e)
         {
             OnGameFailedToStart?.Invoke(e.Message);
-            SessionStarted = false;
-            _isJoiningSession = false;
+            GameLobby.Instance.LeaveLobby(() =>
+            {
+                SessionStarted = false;
+                _isJoiningSession = false;
+            });
             Console.WriteLine(e);
             throw;
         }
@@ -209,13 +282,13 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         }
         else
         {
-            GameLobby.Instance.LeaveLobby(() =>
-            {
-                NetworkManager.Singleton.Shutdown();
-            });  
+            LeaveLobbyAndSession();
         }
     }
-    
+
+    private void LeaveLobbyAndSession() => GameLobby.Instance.LeaveLobby(
+        () => { NetworkManager.Singleton.Shutdown(); });
+
     private async void ClientStopped(bool hostStopped)
     {
         if (hostStopped) return;
