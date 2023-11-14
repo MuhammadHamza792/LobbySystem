@@ -1,12 +1,13 @@
 using System;
 using System.Threading.Tasks;
 using LobbyPackage.Scripts.UI.Notify;
+#if UNITY_EDITOR
 using ParrelSync;
+#endif
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 using UnityEngine;
-#if UNITY_EDITOR
-#endif
+
 
 namespace LobbyPackage.Scripts
 {

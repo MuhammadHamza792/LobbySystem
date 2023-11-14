@@ -313,14 +313,10 @@ namespace LobbyPackage.Scripts
         private async Task OnClientStopped()
         {
             OnLeavingSession?.Invoke();
-            await Helper.LoadSceneAsync(() =>
+            StopGame(() =>
             {
-                StopGame(() =>
-                {
-                    OnSessionLeft?.Invoke();
-                });
-                return true;
-            }, "Lobby");
+                OnSessionLeft?.Invoke();
+            });
         }
 
         #endregion
