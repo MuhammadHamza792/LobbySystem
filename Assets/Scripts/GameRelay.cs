@@ -32,6 +32,12 @@ public class GameRelay : Singleton<GameRelay>
     
     #endregion
     
+    /// <summary>
+    /// Creates a Relay allocation.
+    /// </summary>
+    /// <param name="maxPlayer">Max players to allocate.</param>
+    /// <param name="region">Region to connect.</param>
+    /// <returns>Returns a string task so it can wait until it finishes and grabs relay code on completion.</returns>
     public async Task<string> CreateRelay(int maxPlayer, string region = null)
     {
         try
@@ -58,6 +64,11 @@ public class GameRelay : Singleton<GameRelay>
         }
     }
     
+    /// <summary>
+    /// Joins a Relay allocation.
+    /// </summary>
+    /// <param name="relayCode">Code to join Relay.</param>
+    /// <returns>Returns a Allocation task so it can wait until it finishes and grabs allocation on completion.</returns>
     public async Task<JoinAllocation> JoinRelay(string relayCode)
     {
         try
@@ -77,172 +88,4 @@ public class GameRelay : Singleton<GameRelay>
             throw;
         }
     }
-    
-    /*#region StartSession
-
-    private bool _isSessionStarting;
-    private bool _isSessionStoping;
-    
-    public async void StartGame(string reg = null)
-    {
-        if(_isSessionStarting) return;
-        _isSessionStarting = true;
-
-        var gameLobby = GameLobby.Instance;
-        
-        if(!gameLobby.IsLobbyHost()) return;
-        
-        string relayCode;
-        bool serverStarted;
-
-        _setCustomRelaySize = gameLobby.HasCustomConnection;
-        _relaySize = gameLobby.NumbersOfCustomConnections;
-        
-        try
-        {
-            var selectedRegion = _regions.FirstOrDefault(region => region == reg);
-            relayCode = await CreateRelay(_setCustomRelaySize ? _relaySize :
-                gameLobby.LobbyInstance.MaxPlayers, selectedRegion);
-
-            OnStartingGame?.Invoke();
-            
-            if (_loadSeparateGameScene)
-            {
-                _serverStarted = await Helper.LoadSceneAsync(() =>
-                {
-                    var serverHasStarted = NetworkManager.Singleton.StartHost();
-                    return serverHasStarted;
-                }, _sceneToLoad);
-                
-            }
-            else
-            {
-                _serverStarted = NetworkManager.Singleton.StartHost();
-            }
-            
-            if (!_serverStarted)
-            {
-                OnGameFailedToStart?.Invoke("Failed To Start Server.");
-                _isSessionStarting = false;
-                SessionStarted = false;
-                return;
-            }
-            
-            //OnGameStarted?.Invoke();
-            SessionStarted = true;
-        }
-    
-        catch (RelayServiceException e)
-        {
-            OnGameFailedToStart?.Invoke(e.Message);
-            _isSessionStarting = false;
-            SessionStarted = false;
-            Debug.Log(e);
-            return;
-        }
-        
-        try
-        {
-            gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
-            {
-                Data = new Dictionary<string, DataObject>
-                {
-                    {"START_GAME", new DataObject(DataObject.VisibilityOptions.Public, relayCode)},
-                    {"PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, gameLobby.LobbyInstance.Players.Count.ToString())}
-                }
-            }, () => _isSessionStarting = false);
-        }
-        catch (LobbyServiceException e)
-        {
-            NetworkManager.Singleton.Shutdown();
-            OnGameFailedToStart?.Invoke(e.Message);
-            _isSessionStarting = false;
-            SessionStarted = false;
-            Debug.Log(e);
-            throw;
-        }
-        
-    }
-    private bool _isJoiningSession;
-    
-    public async void JoinGame()
-    {
-        if(_isJoiningSession) return;
-        _isJoiningSession = true;
-
-        var gameLobby = GameLobby.Instance;
-        
-        var relayCode = gameLobby.LobbyInstance.Data["START_GAME"].Value;
-
-        try
-        {
-            var relayToJoin = await JoinRelay(relayCode);
-            
-            OnStartingGame?.Invoke();
-            
-            //await Helper.LoadAdditiveSceneAsync(null, "MultiplayerDependencies");
-            
-            var serverData = new RelayServerData(relayToJoin, "dtls");
-            NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(serverData);
-            NetworkManager.Singleton.StartClient();
-            
-        }
-        catch (RelayServiceException e)
-        {
-            OnGameFailedToStart?.Invoke(e.Message);
-            SessionStarted = false;
-            _isJoiningSession = false;
-            Console.WriteLine(e);
-            throw;
-        }
-        
-    }
-
-    private async void ClientConnected()
-    {
-        SessionStarted = true;
-        _isJoiningSession = false;
-    }
-
-    public void StopGame(Action onComplete = null)
-    {
-        if(_isSessionStoping) return;
-        _isSessionStoping = true;
-        
-        try
-        {
-            var gameLobby = GameLobby.Instance;
-            if (gameLobby.DestroyLobbyAfterSessionStarted || !gameLobby.IsLobbyHost())
-            {
-                SessionStarted = false;
-                _isSessionStoping = false;
-                onComplete?.Invoke();
-                return;
-            }
-            gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
-            {
-                Data = new Dictionary<string, DataObject>
-                {
-                    {"START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0")},
-                }
-            }, () =>
-            {
-                Debug.Log($"Session Stopped");
-                SessionStarted = false;
-                _isSessionStoping = false;
-                onComplete?.Invoke();
-            });
-        }
-        catch (LobbyServiceException e)
-        {
-            NetworkManager.Singleton.Shutdown();
-            OnGameFailedToStart?.Invoke(e.Message);
-            _isSessionStoping = false;
-            SessionStarted = false;
-            Debug.Log(e);
-            throw;
-        }
-    }
-    
-    #endregion*/
 }

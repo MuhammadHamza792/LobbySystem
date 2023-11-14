@@ -79,6 +79,9 @@ public class GameLobby : Singleton<GameLobby>
     
     #region LobbyFunctions
 
+    /// <summary>
+    /// Sending Heartbeat to keep lobby alive.
+    /// </summary>
     private async void HandleLobbyHeartBeat()
     {
         if(LobbyInstance == null) return;
@@ -101,6 +104,10 @@ public class GameLobby : Singleton<GameLobby>
         
     }
 
+    /// <summary>
+    /// Handling Lobby states at different intervals and on different clients.
+    /// Checking whether player is kicked or not, host has started session etc.
+    /// </summary>
     private async void HandleLobbyState()
     {
         if(LobbyInstance == null) return;
@@ -179,8 +186,15 @@ public class GameLobby : Singleton<GameLobby>
 
     private bool _lobbyIsBeingCreated;
     
+    /// <summary>
+    /// Creating a lobby and handling all the cases if whether lobby was created successfully or not.
+    /// Sending callbacks to update UI.
+    /// </summary>
+    /// <param name="lobbyData">Data required to create a lobby i.e public/private, is lobby protected etc.</param>
+    /// <param name="shouldUpdateUI">Should update UI or not.</param>
+    /// <returns>Returns a task so it can wait until it finishes</returns>
     public async void CreateLobby(LobbyData lobbyData, bool shouldUpdateUI) => await CreateLobbyAsync(lobbyData, shouldUpdateUI);
-
+    
     private async Task CreateLobbyAsync(LobbyData lobbyData, bool shouldUpdateUI)
     {
         if (_lobbyIsBeingCreated)
@@ -213,10 +227,6 @@ public class GameLobby : Singleton<GameLobby>
                     {"DestroyLobbyAfterSession",new DataObject(DataObject.VisibilityOptions.Public, destroyLobbyAfterSession)},
                     { "START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0") },
                     { "PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, "0") },
-                    /*{
-                        "HOST_PLOT_DATA",
-                        new DataObject(DataObject.VisibilityOptions.Member, PlotDataManager.data.id)
-                    },*/
                 }
             };
 
@@ -235,8 +245,6 @@ public class GameLobby : Singleton<GameLobby>
             if (shouldUpdateUI)
             {
                 OnLobbyCreated?.Invoke(lobby, this);
-                //OnLobbyCreated?.Invoke(this, lobby);
-                //OnLobbyChanged?.Invoke(this, lobby);
             }
         }
         catch (LobbyServiceException e)
@@ -268,6 +276,17 @@ public class GameLobby : Singleton<GameLobby>
 
     private bool _isJoiningLobby;
     
+    /// <summary>
+    /// Joining a lobby and handling all the cases if whether lobby was joined successfully or not.
+    /// Sending callbacks to update UI.
+    /// Different handling for public and private lobby.
+    /// If it's public lobby you have to join through Lobby Id.
+    /// If it's private you have to join through lobby code.
+    /// </summary>
+    /// <param name="lobbyInfo">Info to join a lobby i.e lobby id or lobby code.</param>
+    /// <param name="publicLobby">Whether it's a public or private lobby.</param>
+    /// <param name="password">If Lobby is protected it requires password.</param>
+    /// <param name="shouldUpdateUI">Should update UI or not.</param>
     public async void JoinLobby(string lobbyInfo, bool publicLobby,string password = null,bool shouldUpdateUI = true)
     {
         if (!publicLobby)
@@ -376,6 +395,11 @@ public class GameLobby : Singleton<GameLobby>
 
     private bool _isChangingHost;
     
+    /// <summary>
+    /// Updating lobby with a new Host.
+    /// Dealing with the cases whether it was successful or not.
+    /// </summary>
+    /// <param name="player">Player to make the new host.</param>
     public void ChangeHost(Player player)
     {
         if(!_canInteractWithLobby) return;
@@ -411,6 +435,13 @@ public class GameLobby : Singleton<GameLobby>
 
     private bool _isUpdatingLobby;
     
+    /// <summary>
+    /// Sending an update call to modify current lobby.
+    /// Dealing with cases whether it was successful or not
+    /// </summary>
+    /// <param name="lobbyId">Id of the lobby to update.</param>
+    /// <param name="lobbyOptions">Updated options i.e Lobby options we've set in lobby creation.</param>
+    /// <param name="onComplete">Callback when updating is completed.</param>
     public async void UpdateLobby(string lobbyId, UpdateLobbyOptions lobbyOptions, Action onComplete = null) =>
         await UpdateLobbyAsync(lobbyId, lobbyOptions, onComplete);
 
@@ -449,6 +480,14 @@ public class GameLobby : Singleton<GameLobby>
     private bool _isRemovingPlayer;
     private bool _hostHasLeftLobby;
     
+    /// <summary>
+    /// Leaving a lobby.
+    /// Differs for host and client.
+    /// For host if the lobby is supposed to be destroyed with host, the host destroys lobby when leaves.
+    /// Else it just removes itself from the lobby, for client handling as well.
+    /// Dealing with cases whether it was successful or not.
+    /// </summary>
+    /// <param name="onComplete">Callback when Leaving is completed.</param>
     [Button]
     public void LeaveLobby(Action onComplete = null)
     {
@@ -500,6 +539,12 @@ public class GameLobby : Singleton<GameLobby>
             throw;
         }
     }
+    
+    /// <summary>
+    /// Kicking a player from lobby.
+    /// Only host can Kick other players
+    /// </summary>
+    /// <param name="player">Player to kick.</param>
     public void KickAPlayer(Player player)
     {
         if(!_canInteractWithLobby) return;
@@ -526,6 +571,13 @@ public class GameLobby : Singleton<GameLobby>
             throw;
         }
     }
+    
+    /// <summary>
+    /// General function to remove a player from lobby.
+    /// </summary>
+    /// <param name="lobbyId">From the lobby.</param>
+    /// <param name="playerId">Player to remove.</param>
+    /// <param name="onComplete">On player removed callback.</param>
     public async void RemoveAPlayer(string lobbyId, string playerId, Action onComplete = null)
     {
         await RemoveAPlayerAsync(lobbyId, playerId, onComplete);
@@ -554,6 +606,11 @@ public class GameLobby : Singleton<GameLobby>
 
     private bool _isDestroyingLobby;
     
+    /// <summary>
+    /// Send Call to Destroy Lobby.
+    /// Only Host can Destroy Lobby.
+    /// </summary>
+    /// <param name="onComplete">On Lobby Destroyed callback.</param>
     public async void DestroyLobby(Action onComplete = null) => await AsyncDestroyLobby(onComplete);
     private async Task AsyncDestroyLobby(Action onComplete)
     {
@@ -601,6 +658,11 @@ public class GameLobby : Singleton<GameLobby>
         await LeaveLobbyIfExits();
     }
 
+    /// <summary>
+    /// On Leaving the game if the player is in lobby.
+    /// If its a host destroy Lobby.
+    /// Else if its a client remove him from the lobby.
+    /// </summary>
     public async Task LeaveLobbyIfExits()
     {
         if (LobbyInstance == null) return;

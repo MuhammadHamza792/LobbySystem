@@ -48,6 +48,10 @@ public class GameNetworkHandler : Singleton<GameNetworkHandler>
         NetworkManager.Singleton.OnClientStopped += ClientStopped;
     }
     
+    
+    /// <summary>
+    /// Checks If Host Has Crashed.
+    /// </summary>
     private void Update()
     {
         if(GameLobby.Instance.IsLobbyHost()) return;
