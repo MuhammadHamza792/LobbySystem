@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Sirenix.OdinInspector;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
@@ -54,7 +53,6 @@ public class GameLobby : Singleton<GameLobby>
 
     #endregion
     
-    [ShowInInspector]
     public Lobby LobbyInstance { private set; get; }
     public bool DestroyLobbyAfterSessionStarted => _destroyLobbyAfterSessionStarted;
     
@@ -488,7 +486,6 @@ public class GameLobby : Singleton<GameLobby>
     /// Dealing with cases whether it was successful or not.
     /// </summary>
     /// <param name="onComplete">Callback when Leaving is completed.</param>
-    [Button]
     public void LeaveLobby(Action onComplete = null)
     {
         if(!_canInteractWithLobby) return;

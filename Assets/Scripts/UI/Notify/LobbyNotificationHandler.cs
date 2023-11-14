@@ -2,8 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Sirenix.OdinInspector;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace UI.Notify
@@ -12,12 +10,9 @@ namespace UI.Notify
     {
         [SerializeField] private List<LobbyNotification> _notifications;
         
-        [ShowInInspector]
         private Queue<NotificationData> _notifyQueue;
-        [ShowInInspector]
         private Queue<NotificationData> _bufferQueue;
-
-        [ShowInInspector]
+        
         private NotificationData _currentData;
         private Coroutine _notificationsCo;
 

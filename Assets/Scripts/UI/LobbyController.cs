@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Sirenix.OdinInspector;
 using UI.Notify;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace UI
@@ -103,12 +101,11 @@ namespace UI
 
         private void Start()
         {
-            //_leaveButton.onClick.AddListener(LeaveSession);
+            _leaveButton.onClick.AddListener(LeaveSession);
             _leaveButton.gameObject.SetActive(false);
             _exitButton.onClick.AddListener(Application.Quit);
         }
-
-        [Button()]
+        
         public static void LeaveSession() => DoLeaveSession?.Invoke();
 
         public void CheckAndChangeState(string canvasName)
