@@ -40,7 +40,7 @@ namespace LobbyPackage.Scripts
         {
             if (_askForPlayersName)
             {
-                NotificationHelper.SendNotification(NotificationType.RequiredField, 
+                NotificationHelper.SendNotification(NotificationType.RequiredField, "Sign In",
                     "Please Enter Your Name", this, NotifyCallType.Open);
                 return;
             }

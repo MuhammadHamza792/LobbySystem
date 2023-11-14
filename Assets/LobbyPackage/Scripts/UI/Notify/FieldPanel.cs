@@ -26,7 +26,7 @@ namespace LobbyPackage.Scripts.UI.Notify
             _closeButton.onClick.RemoveAllListeners();
             _closeButton.onClick.AddListener(() =>
             {
-                NotificationHelper.SendNotification(NotificationType.RequiredField, nData.Text,
+                NotificationHelper.SendNotification(NotificationType.RequiredField, nData.Context,nData.Text,
                     nData.Notifier, NotifyCallType.Close);
             });
             
@@ -39,7 +39,7 @@ namespace LobbyPackage.Scripts.UI.Notify
                     _continue.onClick.RemoveAllListeners();
                     _continue.onClick.AddListener(() =>
                     {
-                        NotificationHelper.SendNotification(NotificationType.RequiredField, nData.Text,
+                        NotificationHelper.SendNotification(NotificationType.RequiredField, nData.Context,nData.Text,
                             nData.Notifier, NotifyCallType.Close);
                         nData.Notifier.Notify(_field.text);
                     });

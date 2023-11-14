@@ -47,10 +47,10 @@ namespace LobbyPackage.Scripts.UI
         }
 
         private void SessionFailedToStart() =>
-            NotificationHelper.SendNotification(NotificationType.Error, "Failed To Start Server : Timed Out", this, NotifyCallType.Open);
+            NotificationHelper.SendNotification(NotificationType.Error, "Session Failure","Failed To Start Server : Timed Out", this, NotifyCallType.Open);
 
         private void SessionFailedToJoin() => 
-            NotificationHelper.SendNotification(NotificationType.Error, "Failed To Join Server : Timed Out", this, NotifyCallType.Open);
+            NotificationHelper.SendNotification(NotificationType.Error, "Session Failure","Failed To Join Server : Timed Out", this, NotifyCallType.Open);
 
         private void EnableLeaveButton()
         {
@@ -63,12 +63,12 @@ namespace LobbyPackage.Scripts.UI
 
         private void LeavingSession()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Leaving Session", this, NotifyCallType.Open);
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leave Session","Leaving Session", this, NotifyCallType.Open);
         }
 
         private void SessionLeft()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Session Left", this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leave Session","Session Left", this, NotifyCallType.Close);
         }
         
         #endregion

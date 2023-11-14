@@ -7,19 +7,15 @@ namespace LobbyPackage.Scripts
 {
     public class NetworkController : NetworkBehaviour
     {
-        public static event Action OnClientConnected; 
+        public static event Action<bool> OnClientConnected; 
         //public static event Action OnSessionFailedToLeave;
     
         public override void OnNetworkSpawn()
         {
-            if (IsHost && IsOwner)
+            if (IsOwner)
             {
                 GameNetworkHandler.OnGameStarted?.Invoke();
-            }
-            else if (IsClient && IsOwner)
-            {
-                GameNetworkHandler.OnGameStarted?.Invoke();
-                OnClientConnected?.Invoke();
+                OnClientConnected?.Invoke(IsHost);
             }
         
             LobbyController.DoLeaveSession += LeaveGame;

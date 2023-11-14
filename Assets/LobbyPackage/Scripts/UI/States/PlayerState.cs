@@ -140,14 +140,14 @@ namespace LobbyPackage.Scripts.UI.States
         
         #region HearBeat
         private void FailedToSendHeartBeat(string msg) =>
-            NotificationHelper.SendNotification(NotificationType.Error, msg,
+            NotificationHelper.SendNotification(NotificationType.Error, "Heartbeat",msg,
                 this, NotifyCallType.Open);
         #endregion
 
         #region FindLobby
         private void FailedToFindLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Error, "Failed To Get Lobby." + "Either Lobby Is Destroyed Or" +
+            NotificationHelper.SendNotification(NotificationType.Error, "Find Lobby","Failed To Get Lobby." + "Either Lobby Is Destroyed Or" +
                                                                         " You Have Been Kicked",
                 this, NotifyCallType.Open);
             _lobbyController.CheckAndChangeState("MainLobby");
@@ -167,19 +167,19 @@ namespace LobbyPackage.Scripts.UI.States
 
         private void ChangingHost()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Changing Lobby Host",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Host Change","Changing Lobby Host",
                 this, NotifyCallType.Open);
         }
 
         private void HostChanged()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Host Changed",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Host Change","Lobby Host Changed",
                 this, NotifyCallType.Close);
         }
 
         private void FailedToChangeHost(string msg)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, msg,
+            NotificationHelper.SendNotification(NotificationType.Progress, "Host Change",msg,
                 this, NotifyCallType.Close);
         }
 
@@ -188,20 +188,20 @@ namespace LobbyPackage.Scripts.UI.States
         #region Destroy
         private void DestroyingLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Destroying Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Destroy Lobby","Destroying Lobby",
                 this, NotifyCallType.Open);
         }
 
         private void LobbyDestroyed()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Destroyed",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Destroy Lobby","Lobby Destroyed",
                 this, NotifyCallType.Close);
             _lobbyController.CheckAndChangeState("MainLobby");
         }
 
         private void LobbyFailedToDestroy(string obj)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Failed To Destroy",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Destroy Lobby","Lobby Failed To Destroy",
                 this, NotifyCallType.Close);
         }
         #endregion
@@ -210,19 +210,19 @@ namespace LobbyPackage.Scripts.UI.States
         
         private void UpdatingLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Updating Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Update Lobby","Updating Lobby",
                 this, NotifyCallType.Open);
         }
 
         private void LobbyUpdated(Lobby lobby, GameLobby gameLobby)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Updated",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Update Lobby","Lobby Updated",
                 this, NotifyCallType.Close);
         }
         
         private void LobbyFailedToUpdate(string msg)
         {
-            NotificationHelper.SendNotification(NotificationType.Error, msg,
+            NotificationHelper.SendNotification(NotificationType.Error, "Update Lobby",msg,
                 this, NotifyCallType.Open);
         }
         
@@ -232,26 +232,26 @@ namespace LobbyPackage.Scripts.UI.States
         
         private void KickingFromLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Kicking From Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Kick Player","Kicking From Lobby",
                 this, NotifyCallType.Open);
         }
         
         private void KickedFromLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Error, "You are Kicked From Lobby",
+            NotificationHelper.SendNotification(NotificationType.Error, "Kick Player","You are Kicked From Lobby",
                 this, NotifyCallType.Open);
             _lobbyController.CheckAndChangeState("MainLobby");
         }
         
         private void PlayerKickedFromLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Kicked From Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Kick Player","Kicked From Lobby",
                 this, NotifyCallType.Close);
         }
 
         private void FailedToKickFromLobby(string msg)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Failed To Kick From Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Kick Player","Failed To Kick From Lobby",
                 this, NotifyCallType.Close);
         }
         
@@ -261,21 +261,21 @@ namespace LobbyPackage.Scripts.UI.States
 
         private void LobbyLeft(Lobby lobby, GameLobby gameLobby)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Left",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leave Lobby","Lobby Left",
                 this, NotifyCallType.Close);
             _lobbyController.CheckAndChangeState("MainLobby");
         }
 
         private void LobbyFailedToLeave(string msg)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Failed To Leave Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leave Lobby","Failed To Leave Lobby",
                 this, NotifyCallType.Close);
-            NotificationHelper.SendNotification(NotificationType.Error, msg, this, NotifyCallType.Open);
+            NotificationHelper.SendNotification(NotificationType.Error, "Leave Lobby",msg, this, NotifyCallType.Open);
         }
 
         private void LeavingLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Leaving Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leave Lobby","Leaving Lobby",
                 this, NotifyCallType.Open);
         }
 
@@ -286,20 +286,20 @@ namespace LobbyPackage.Scripts.UI.States
         private void CreatingRelay()
         {
             _leave.interactable = false;
-            NotificationHelper.SendNotification(NotificationType.Progress, "Creating Relay",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Creation","Creating Relay",
                 this, NotifyCallType.Open);
         }
         private void RelayCreated()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Created",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Creation","Relay Created",
                 this, NotifyCallType.Close);
         }
         private void RelayFailedToCreate(string msg)
         {
             _leave.interactable = true;
-            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Failed To Create",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Creation","Relay Failed To Create",
                 this, NotifyCallType.Close);
-            NotificationHelper.SendNotification(NotificationType.Error, msg,
+            NotificationHelper.SendNotification(NotificationType.Error, "Relay Creation",msg,
                 this, NotifyCallType.Open);
         }
         
@@ -310,20 +310,20 @@ namespace LobbyPackage.Scripts.UI.States
         private void JoiningRelay()
         {
             _leave.interactable = false;
-            NotificationHelper.SendNotification(NotificationType.Progress, "Joining Relay",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Joining","Joining Relay",
                 this, NotifyCallType.Open);
         }
         private void RelayJoined()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Joined",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Joining","Relay Joined",
                 this, NotifyCallType.Close);
         }
         private void RelayFailedToJoin(string msg)
         {
             _leave.interactable = true;
-            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Failed To Join",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Relay Joining","Relay Failed To Join",
                 this, NotifyCallType.Close);
-            NotificationHelper.SendNotification(NotificationType.Error, msg,
+            NotificationHelper.SendNotification(NotificationType.Error, "Relay Joining",msg,
                 this, NotifyCallType.Open);
         }
         
@@ -333,23 +333,23 @@ namespace LobbyPackage.Scripts.UI.States
 
         private void StartingGame()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Starting Game",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Start Game","Starting Game",
                 this, NotifyCallType.Open);
         }
         
         private void GameStarted()
         {
             _leave.interactable = true;
-            NotificationHelper.SendNotification(NotificationType.Progress, "Game Started",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Start Game","Game Started",
                 this, NotifyCallType.Close);
         }
 
         private void GameFailedToStart(string msg)
         {
             _leave.interactable = true;
-            NotificationHelper.SendNotification(NotificationType.Progress, "Game Failed To Start",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Start Game","Game Failed To Start",
                 this, NotifyCallType.Close);
-            NotificationHelper.SendNotification(NotificationType.Error, msg,
+            NotificationHelper.SendNotification(NotificationType.Error, "Start Game",msg,
                 this, NotifyCallType.Open);
         }
         

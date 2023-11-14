@@ -20,7 +20,7 @@ namespace LobbyPackage.Scripts
             {
                 if (_lobbyObjectData.HasPassword)
                 {
-                    NotificationHelper.SendNotification(NotificationType.RequiredField, "Please Enter Lobby's Password.",
+                    NotificationHelper.SendNotification(NotificationType.RequiredField, "Lobby Pass","Please Enter Lobby's Password.",
                         this, NotifyCallType.Open);
                     return;
                 }

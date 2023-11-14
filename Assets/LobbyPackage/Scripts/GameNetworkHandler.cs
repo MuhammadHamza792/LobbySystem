@@ -42,9 +42,7 @@ namespace LobbyPackage.Scripts
     
         private void OnEnable()
         {
-            NetworkController.OnClientConnected += ClientConnected;
             NetworkController.OnClientConnected  += ClientStarted;
-            NetworkManager.Singleton.OnServerStarted += ServerStarted;
             NetworkManager.Singleton.OnClientDisconnectCallback += ClientDisconnected;
             NetworkManager.Singleton.OnClientStopped += ClientStopped;
         }
@@ -68,49 +66,44 @@ namespace LobbyPackage.Scripts
 
         private void OnDisable()
         {
-            NetworkController.OnClientConnected -= ClientConnected;
             NetworkController.OnClientConnected -= ClientStarted;
             if(NetworkManager.Singleton == null) return;
-            NetworkManager.Singleton.OnServerStarted -= ServerStarted;
             NetworkManager.Singleton.OnClientDisconnectCallback -= ClientDisconnected;
             NetworkManager.Singleton.OnClientStopped -= ClientStopped;
         }
-    
-        private void ClientConnected()
-        {
-            SessionStarted = true;
-            _isJoiningSession = false;
-        }
-    
+        
         private void ClientDisconnected(ulong client)
         {
             if (NetworkManager.Singleton.LocalClientId != client) return;
             NetworkManager.Singleton.Shutdown();
         }
     
-        private void ClientStarted()
+        private void ClientStarted(bool isHost)
         {
-            _isJoiningSession = false;
+            if (isHost)
+            {
+                Debug.Log("Server Started");
+                _isSessionStarting = false;
+                if(_startingHostTimeout == null) return;
+                if(_startingHostTimeoutCo == null) return;
+                Debug.Log("Host Timeout Coroutine Stopped");
+                StopCoroutine(_startingHostTimeoutCo);
+                _startingHostTimeout.Reset();
+            }
+            else
+            {
+                _isJoiningSession = false;
+                if(_startingClientTimeout == null) return;
+                if(_startingClientTimeoutCo == null) return;
+                Debug.Log("Client Timeout Coroutine Stopped");
+                StopCoroutine(_startingClientTimeoutCo);
+                _startingClientTimeout.Reset();
+            }
+            
             SessionStarted = true;
-            if(_startingClientTimeout == null) return;
-            if(_startingClientTimeoutCo == null) return;
-            Debug.Log("Client Timeout Coroutine Stopped");
-            StopCoroutine(_startingClientTimeoutCo);
-            _startingClientTimeout.Reset();
         }
     
-        private void ServerStarted()
-        {
-            Debug.Log("Server Started");
-            SessionStarted = true;
-            _isSessionStarting = false;
-            if(_startingHostTimeout == null) return;
-            if(_startingHostTimeoutCo == null) return;
-            Debug.Log("Host Timeout Coroutine Stopped");
-            StopCoroutine(_startingHostTimeoutCo);
-            _startingHostTimeout.Reset();
-        }
-    
+        
         #region StartGame
     
         private TimeOut _startingHostTimeout;
@@ -280,7 +273,7 @@ namespace LobbyPackage.Scripts
         {
             if (isHost)
             {
-                OnHostStopped();
+                StopHost();
             }
             else
             {
@@ -300,7 +293,7 @@ namespace LobbyPackage.Scripts
             await OnClientStopped();
         }
     
-        private void OnHostStopped()
+        private void StopHost()
         {
             OnLeavingSession?.Invoke();
             StopGame(() =>

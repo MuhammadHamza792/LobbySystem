@@ -184,7 +184,7 @@ namespace LobbyPackage.Scripts
             }
             catch (LobbyServiceException e)
             {
-                NotificationHelper.SendNotification(NotificationType.Error, e.Message, this, NotifyCallType.Open);
+                NotificationHelper.SendNotification(NotificationType.Error, "Search Lobby",e.Message, this, NotifyCallType.Open);
                 _isRefreshingLobbies = false;
                 Debug.Log(e);
                 throw;

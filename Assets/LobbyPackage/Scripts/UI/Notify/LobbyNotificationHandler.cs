@@ -94,7 +94,7 @@ namespace LobbyPackage.Scripts.UI.Notify
                     
                     if (_currentData is { Notifier: not null, NotifyCallType: NotifyCallType.Open })
                     {
-                        if (nData.Notifier == _currentData.Notifier)
+                        if (nData.Notifier == _currentData.Notifier && nData.Context == _currentData.Context)
                         {
                             EnqueueNotification(nData);
                             return;
@@ -105,7 +105,7 @@ namespace LobbyPackage.Scripts.UI.Notify
                     {
                         if (_notifyQueue.Peek().NotifyCallType == NotifyCallType.Open)
                         {
-                            if (nData.Notifier == _currentData.Notifier)
+                            if (nData.Notifier == _currentData.Notifier && nData.Context == _currentData.Context)
                             {
                                 EnqueueNotification(nData);
                                 return;
@@ -149,7 +149,8 @@ namespace LobbyPackage.Scripts.UI.Notify
         {
             if(_notifyQueue.Count == 0) yield break;
             while (_notifyQueue.Peek().Notifier != CurrentData.Notifier ||
-                   _notifyQueue.Peek().NotifyCallType != NotifyCallType.Close)
+                   _notifyQueue.Peek().NotifyCallType != NotifyCallType.Close ||
+                   _notifyQueue.Peek().Context != CurrentData.Context)
             {
                 yield return null;
             }
@@ -173,6 +174,7 @@ namespace LobbyPackage.Scripts.UI.Notify
     {
         public NotificationType NotifyType;
         public INotifier Notifier;
+        public string Context;
         public string Text;
         public NotifyCallType NotifyCallType;
     }

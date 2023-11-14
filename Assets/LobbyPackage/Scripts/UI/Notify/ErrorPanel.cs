@@ -29,7 +29,7 @@ namespace LobbyPackage.Scripts.UI.Notify
                     _continue.onClick.RemoveAllListeners();
                     _continue.onClick.AddListener(() =>
                     {
-                        NotificationHelper.SendNotification(NotificationType.Error, nData.Text,
+                        NotificationHelper.SendNotification(NotificationType.Error, nData.Context,nData.Text,
                             nData.Notifier, NotifyCallType.Close);
                     });
                     NotifyOnClose = false;

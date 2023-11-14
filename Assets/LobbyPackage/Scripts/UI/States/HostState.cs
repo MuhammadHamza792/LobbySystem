@@ -99,21 +99,21 @@ namespace LobbyPackage.Scripts.UI.States
         }
         
         private void CreatingLobby() =>
-            NotificationHelper.SendNotification(NotificationType.Progress, "Creating Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Creation","Creating Lobby",
                 this, NotifyCallType.Open);
 
         private void LobbyCreated(Lobby arg1, GameLobby arg2)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Created",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Creation","Lobby Created",
                 this, NotifyCallType.Close);
             _lobbyController.CheckAndChangeState("PlayerPanel");
         }
         
         private void LobbyFailedToCreate(string context)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Failed To Create Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Creation","Failed To Create Lobby",
                 this, NotifyCallType.Close);
-            NotificationHelper.SendNotification(NotificationType.Error, context,
+            NotificationHelper.SendNotification(NotificationType.Error,"Lobby Creation", context,
                 this, NotifyCallType.Open);
         }
         
@@ -132,7 +132,7 @@ namespace LobbyPackage.Scripts.UI.States
 
                 if (int.Parse(_lobbyMaxConnectionsNameField.text) > 100)
                 {
-                    NotificationHelper.SendNotification(NotificationType.Error, "Number of custom Connections can't exceed 100.",
+                    NotificationHelper.SendNotification(NotificationType.Error, "Lobby Creation","Number of custom Connections can't exceed 100.",
                         this, NotifyCallType.Open);
                     return;
                 }

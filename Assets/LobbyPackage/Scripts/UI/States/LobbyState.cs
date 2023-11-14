@@ -83,14 +83,14 @@ namespace LobbyPackage.Scripts.UI.States
         
         private void LobbyJoined(Lobby lobby, GameLobby gameLobby)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Joined",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Joining", "Lobby Joined",
                 this, NotifyCallType.Close);
             _lobbyController.CheckAndChangeState("PlayerPanel");
         }
 
         private void JoiningLobby()
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Joining Lobby", 
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Joining","Joining Lobby", 
                 this, NotifyCallType.Open);
         }
         
@@ -104,9 +104,9 @@ namespace LobbyPackage.Scripts.UI.States
 
         private void LobbyFailedToJoin(string msg)
         {
-            NotificationHelper.SendNotification(NotificationType.Progress, "Failed To Join Lobby",
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Joining","Failed To Join Lobby",
                 this, NotifyCallType.Close);
-            NotificationHelper.SendNotification(NotificationType.Error, msg, this, NotifyCallType.Open);
+            NotificationHelper.SendNotification(NotificationType.Error, "Lobby Joining",msg, this, NotifyCallType.Open);
         }
 
         private void CopyToClipBoard(string str) => GUIUtility.systemCopyBuffer = str;
