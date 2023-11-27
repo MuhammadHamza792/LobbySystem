@@ -45,7 +45,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ada7ea1371b248b0b52d368c1c0591e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _networkManager: {fileID: 1939482266655117373, guid: 1fa6b69b0c83e2d4390f9dcb4eefce24, type: 3}
+  _networkObjects:
+  - GameObject: {fileID: 1939482266655117373, guid: 1fa6b69b0c83e2d4390f9dcb4eefce24, type: 3}
+    SpawnWithOwnerShip: 1
+    SpawnAsPlayerObject: 0
+    DestroyWithScene: 1
+  _destroySpawnObjectsWithSpawner: 0
 --- !u!114 &4119629351954643538
 MonoBehaviour:
   m_ObjectHideFlags: 0
