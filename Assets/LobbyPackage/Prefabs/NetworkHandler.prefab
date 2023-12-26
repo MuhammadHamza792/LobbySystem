@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2144d61aecddb514ea4069a841ae70de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _setCustomRelaySize: 0
-  _relaySize: 0
   _loadSeparateGameScene: 1
   _sceneToLoad: GameSession
+  _baseSceneToReturn: Lobby
+  _sceneToReturn: 

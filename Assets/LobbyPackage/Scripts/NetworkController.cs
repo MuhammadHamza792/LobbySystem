@@ -15,6 +15,7 @@ namespace LobbyPackage.Scripts
             if (IsOwner)
             {
                 GameNetworkHandler.OnGameStarted?.Invoke();
+                GameNetworkHandler.Instance.InSession = true;
                 OnClientConnected?.Invoke(IsHost);
             }
         
@@ -30,17 +31,6 @@ namespace LobbyPackage.Scripts
                 GameNetworkHandler.Instance.LeaveGame(IsHost);
             }
         }
-
-        private void StopSession(Action onComplete) => GameNetworkHandler.Instance.StopGame(onComplete);
-
-        [ClientRpc]
-        private void DisconnectAllClientsFromLobbyClientRpc()
-        {
-            GameLobby.Instance.DestroyLobby();
-        }
-    
-        [ClientRpc]
-        private void DisconnectAllClientRpc() => NetworkManager.Singleton.Shutdown(); 
 
         public override async void OnNetworkDespawn() => LobbyController.DoLeaveSession -= LeaveGame;
     }

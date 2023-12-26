@@ -31,6 +31,10 @@ namespace LobbyPackage.Scripts
         {
             _searchServers.onValueChanged.AddListener(OnSearch);
             _filters.onValueChanged.AddListener(FilterLobbies);
+            
+            ClearLobbies();
+            _fetchingLobbyTxt.gameObject.SetActive(true);
+            _fetchingLobbyTxt.SetText("Fetching Lobbies...");
         }
 
         private void OnDisable()
@@ -94,13 +98,20 @@ namespace LobbyPackage.Scripts
         }
 
         private void Start() => 
-            _refreshBtn.onClick.AddListener(RefreshLobbies);
+            _refreshBtn.onClick.AddListener(()=>
+            {
+                _lobbyPollTimer = 2f;
+                ClearLobbies();
+                _fetchingLobbyTxt.gameObject.SetActive(true);
+                _fetchingLobbyTxt.SetText("Fetching Lobbies...");
+                RefreshLobbies();
+            });
 
         private void Update()
         {
             _lobbyPollTimer -= Time.deltaTime;
             if (!(_lobbyPollTimer < 0f)) return;
-            var lobbyPollTimerMax = 2f;
+            var lobbyPollTimerMax = 1.25f;
             _lobbyPollTimer = lobbyPollTimerMax;
         
             RefreshLobbies();
@@ -110,22 +121,19 @@ namespace LobbyPackage.Scripts
         {
             if(_isRefreshingLobbies) return;
             _isRefreshingLobbies = true;
-
+            
             await FetchLobbies();
 
             _serversCount.SetText($"{_lobbies.Count}");
 
-            if (_lobbies.Count == _lobbyObjects.Count)
+            /*if (_lobbies.Count == _lobbyObjects.Count)
             {
+                await Task.Delay(1500);
                 _isRefreshingLobbies = false;
                 return;
-            }
-        
+            }*/
+            
             ClearLobbies();
-        
-            _fetchingLobbyTxt.gameObject.SetActive(true);
-            _fetchingLobbyTxt.SetText("Fetching Lobbies...");
-        
         
             foreach (var lobby in _lobbies)
             {
@@ -133,7 +141,7 @@ namespace LobbyPackage.Scripts
                 lobbyObject.name = lobby.Name;
                 var lobbyObjectData = new LobbyObjectData
                 {
-                    LobbyName = lobby.Name, 
+                    LobbyName = lobby.Name,
                     LobbyID = lobby.Id,
                     PlayersCount = lobby.Players.Count,
                     TotalPlayers = lobby.MaxPlayers,
@@ -147,7 +155,9 @@ namespace LobbyPackage.Scripts
                 _fetchingLobbyTxt.SetText("No Lobbies Found!");
             else
                 _fetchingLobbyTxt.gameObject.SetActive(false);
-        
+
+            await Task.Delay(1500);
+            
             _isRefreshingLobbies = false;
         }
 
@@ -163,9 +173,7 @@ namespace LobbyPackage.Scripts
 
                 var filteredLobbies = allLobbies.Where(lobby => lobby.Data["START_GAME"].Value == "0" ||
                                                                 lobby.Data["DestroyLobbyAfterSession"].Value != "true").ToList();
-            
-                if (filteredLobbies.Count != _lobbies.Count)
-                {
+                
                     if(_lobbies.Count > 0)
                         _lobbies.Clear();
                 
@@ -174,7 +182,7 @@ namespace LobbyPackage.Scripts
                         if (lobby == null) continue;
                         _lobbies.Add(lobby);
                     }
-                }
+                
             
                 if (_lobbies.Count == 0)
                     _fetchingLobbyTxt.SetText("No Lobbies Found!");
@@ -184,7 +192,7 @@ namespace LobbyPackage.Scripts
             }
             catch (LobbyServiceException e)
             {
-                NotificationHelper.SendNotification(NotificationType.Error, "Search Lobby",e.Message, this, NotifyCallType.Open);
+                NotificationHelper.SendNotification(NotificationType.Error, "Search Lobby", e.Message, this, NotifyCallType.Open);
                 _isRefreshingLobbies = false;
                 Debug.Log(e);
                 throw;
@@ -193,6 +201,8 @@ namespace LobbyPackage.Scripts
 
         private void ClearLobbies()
         {
+            if(_lobbyObjects == null) return;
+            
             foreach (var lobby in _lobbyObjects)
             {
                 Destroy(lobby.gameObject);

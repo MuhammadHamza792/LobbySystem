@@ -1,7 +1,9 @@
+using System.Collections;
 using LobbyPackage.Scripts.UI.Notify;
 using TMPro;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies.Models;
+using Unity.Services.Relay;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -50,6 +52,7 @@ namespace LobbyPackage.Scripts.UI.States
                 GameLobby.OnLobbyFailedToFind += FailedToFindLobby;
 
                 GameLobby.OnHeartBeatFailedToSend += FailedToSendHeartBeat;
+                GameLobby.SessionFailedToJoin += OnSessionFailedToJoin;
 
                 GameRelay.OnCreatingRelay += CreatingRelay;
                 GameRelay.OnRelayCreated += RelayCreated;
@@ -93,6 +96,7 @@ namespace LobbyPackage.Scripts.UI.States
                 GameLobby.OnLobbyFailedToFind -= FailedToFindLobby;
                 
                 GameLobby.OnHeartBeatFailedToSend -= FailedToSendHeartBeat;
+                GameLobby.SessionFailedToJoin -= OnSessionFailedToJoin;
                 
                 GameRelay.OnCreatingRelay -= CreatingRelay;
                 GameRelay.OnRelayCreated -= RelayCreated;
@@ -113,7 +117,6 @@ namespace LobbyPackage.Scripts.UI.States
         
         private void Start()
         {
-            SetRelayRegions();
             _startGame.onClick.AddListener(() =>
             {
                 GameNetworkHandler.Instance.StartGame(_region);
@@ -128,6 +131,8 @@ namespace LobbyPackage.Scripts.UI.States
             {
                 CopyToClipBoard(_lobbyCode.text);
             });
+            
+            SearchForRegions();
         }
         
         private void CopyToClipBoard(string str) => GUIUtility.systemCopyBuffer = str;
@@ -152,15 +157,27 @@ namespace LobbyPackage.Scripts.UI.States
                 this, NotifyCallType.Open);
             _lobbyController.CheckAndChangeState("MainLobby");
         }
+        
+        private void OnSessionFailedToJoin()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Starting Game", "Session Failed To Join.",
+                this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Error, "Starting Game", "Session Failed To Join.",
+                this, NotifyCallType.Open);
+        }
+        
         #endregion
         
         private void SyncLobbyUI(Lobby lobby)
         {
             var currentPlayer = AuthenticationService.Instance.PlayerId;
             var isHost = lobby.HostId == currentPlayer;
-            _regions.gameObject.SetActive(isHost);
-            _startGame.gameObject.SetActive(isHost);
-            _lobbyCode.gameObject.SetActive(isHost);
+            if(_regions.gameObject.activeInHierarchy != isHost)
+                _regions.gameObject.SetActive(isHost);
+            if(_startGame.gameObject.activeInHierarchy != isHost)
+                _startGame.gameObject.SetActive(isHost);
+            if(_lobbyCode.gameObject.activeInHierarchy != isHost)
+                _lobbyCode.gameObject.SetActive(isHost);
         }
 
         #region Host
@@ -354,23 +371,102 @@ namespace LobbyPackage.Scripts.UI.States
         }
         
         #endregion
-        
-        private void RegionSelected(int region) => 
+
+        #region RegionSelection
+
+        private void RegionSelected(int region) =>  
             _region = _regions.options[region].text == "None" ? null : _regions.options[region].text;
 
-        private void SetRelayRegions()
+        private bool _isSearchingRegions;
+        private bool _isRefreshTimerRunning;
+        private bool _shouldRefreshRegions = true;
+        private Coroutine _searchCo;
+        private Coroutine _refreshRegionCo;
+        
+        public void SearchForRegions()
         {
-            var regions = GameRelay.Instance.Regions;
+            if(!_shouldRefreshRegions) return;
 
-            foreach (var region in regions)
+            Debug.Log("Searching regions");
+            
+            if(_isSearchingRegions) return;
+            _isSearchingRegions = true;
+            
+            ClearRegions();
+            
+            if(_searchCo != null) StopCoroutine(_searchCo);
+            _searchCo = StartCoroutine(SetRelayRegions());
+        }
+
+        private IEnumerator SetRelayRegions()
+        {
+            // Request list of valid regions
+            var regionsTask = Relay.Instance.ListRegionsAsync();
+            
+            while (!regionsTask.IsCompleted)
             {
-                var option = new TMP_Dropdown.OptionData
+                yield return null;
+            }
+
+            if (regionsTask.IsFaulted)
+            {
+                ClearRegions();
+                
+                Debug.LogError("List regions request failed");
+                _isSearchingRegions = false;
+                yield break;
+            }
+
+            var regionList = regionsTask.Result;
+            
+            var option = new TMP_Dropdown.OptionData
+            {
+                text = "None"
+            };
+            _regions.options.Add(option);
+
+            foreach (var region in regionList)
+            {
+                option = new TMP_Dropdown.OptionData
                 {
-                    text = region
+                    text = region.Id
                 };
                 _regions.options.Add(option);
             }
+            
+            _regions.RefreshShownValue();
+            
+            _isSearchingRegions = false;
+            _shouldRefreshRegions = false;
+
+            if (_isRefreshTimerRunning) yield break;
+            _isRefreshTimerRunning = true;
+
+            if(_refreshRegionCo != null) StopCoroutine(_refreshRegionCo);
+            _refreshRegionCo = StartCoroutine(RefreshRegions());
         }
+
+        private void ClearRegions()
+        {
+            if (_regions.options.Count > 0)
+                _regions.options.Clear();
+        }
+
+        private IEnumerator RefreshRegions()
+        {
+            var time = 0f;
+            while (time <= 120f)
+            {
+                time += Time.deltaTime;
+                yield return null;
+            }
+
+            _shouldRefreshRegions = true;
+            _isRefreshTimerRunning = false;
+        }
+        #endregion
+        
+        
 
         public void HandleState(LobbyController lobbyController)
         {

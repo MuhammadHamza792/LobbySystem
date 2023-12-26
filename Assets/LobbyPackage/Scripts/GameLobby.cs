@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.Netcode;
 using Unity.Services.Authentication;
 using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
@@ -52,10 +54,12 @@ namespace LobbyPackage.Scripts
         public static event Action<string> OnFailedToChangeHost;
     
         public static event Action<string> OnHeartBeatFailedToSend;
+        public static event Action SessionFailedToJoin; 
 
         #endregion
     
         public Unity.Services.Lobbies.Models.Lobby LobbyInstance { private set; get; }
+        public bool KickedFromLobby { private set; get; }
         public bool DestroyLobbyAfterSessionStarted => _destroyLobbyAfterSessionStarted;
     
         private float _heartBeatTimer;
@@ -63,6 +67,8 @@ namespace LobbyPackage.Scripts
         private bool _sessionStarted;
         private bool _getLobby;
         private int _maxTries = 3;
+        private int _maxJoiningTries = 1;
+        private int _joiningTries;
         private int _tries;
         private bool _canInteractWithLobby;
         private bool _destroyingLobbyAtEnd;
@@ -110,18 +116,21 @@ namespace LobbyPackage.Scripts
         /// </summary>
         private async void HandleLobbyState()
         {
-            if(LobbyInstance == null) return;
-            if(GameNetworkHandler.Instance.SessionStarted) return;
-        
+            if (LobbyInstance == null)
+            {
+                _joiningTries = 0;
+                return;
+            }
+            
             _lobbyPollTimer -= Time.deltaTime;
             if (!(_lobbyPollTimer < 0f)) return;
-            var lobbyPollTimerMax = 1.25f;
+            var lobbyPollTimerMax = 1.1f;
             _lobbyPollTimer = lobbyPollTimerMax;
         
             try
             {
                 //Debug.Log(LobbyInstance.Id);
-                if (!_getLobby)
+                if (!_getLobby && !_isLeavingLobby)
                 {
                     _getLobby = true;
                     _canInteractWithLobby = false;
@@ -151,27 +160,72 @@ namespace LobbyPackage.Scripts
         
             if (!CheckPlayerIsInLobby())
             {
+                _joiningTries = 0;
+                KickedFromLobby = true;
                 OnPlayerKicked?.Invoke();
+                var gameNetworkHandler = GameNetworkHandler.Instance;
+                gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                //NetworkManager.Singleton.Shutdown();
                 LobbyInstance = null;
                 return;
             }
         
             OnSyncLobby?.Invoke(LobbyInstance);
-        
-            if(!CheckWhetherGameHasStarted()) return;
-        
+            
+            TryJoiningSession();
+        }
+
+        private void TryJoiningSession()
+        {
+            switch (GameNetworkHandler.Instance.InSession)
+            {
+                case false when !CheckWhetherGameHasStarted():
+                    return;
+                case true:
+                    _joiningTries = 0;
+                    return;
+            }
+
+            if (GameNetworkHandler.Instance.IsJoiningSession) return;
+            
+            if (_joiningTries >= _maxJoiningTries)
+            {
+                LeaveLobbyAndEndSession();
+                return;
+            }
+            
             if (!IsLobbyHost())
             {
-                GameNetworkHandler.Instance.JoinGame();
+                GameNetworkHandler.Instance.JoinGame(LobbyInstance.Data["START_GAME"].Value,
+                    LobbyInstance.Data["HOST_PLOT_DATA"].Value);
             }
-        
+            
+            _joiningTries++;
+
             if (LobbyInstance.Data["DestroyLobbyAfterSession"].Value == "true")
             {
                 LobbyInstance = null;
             }
-        
         }
-    
+        
+        private void LeaveLobbyAndEndSession()
+        {
+            var gameNetworkHandler = GameNetworkHandler.Instance;
+            
+            if (gameNetworkHandler.ClientTimedOut)
+            {
+                _joiningTries = 0;
+                return;
+            }
+            
+            LeaveLobby(() =>
+            {
+                gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                SessionFailedToJoin?.Invoke();
+                _joiningTries = 0;
+            });
+        }
+
         private bool CheckWhetherGameHasStarted() => LobbyInstance.Data["START_GAME"].Value != "0";
 
         private bool CheckPlayerIsInLobby()
@@ -234,18 +288,17 @@ namespace LobbyPackage.Scripts
                     options.Password = lobbyData.Password;
             
                 var lobby = await LobbyService.Instance.CreateLobbyAsync(lobbyName, lobbyData.MaxLobbyPlayers,options);
-
-                _lobbyIsBeingCreated = false;
-            
+                
                 Debug.Log($"Created Lobby {lobby.Name} with Code {lobby.LobbyCode}");
             
                 LobbyInstance = lobby;
-            
-            
+                
                 if (shouldUpdateUI)
                 {
                     OnLobbyCreated?.Invoke(lobby, this);
                 }
+                
+                _lobbyIsBeingCreated = false;
             }
             catch (LobbyServiceException e)
             {
@@ -330,13 +383,14 @@ namespace LobbyPackage.Scripts
             
                 var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode, options);
             
-                _isJoiningLobby = false;
                 LobbyInstance = lobby;
             
                 if (shouldUpdateUI)
                 {
-                    OnLobbyJoined?.Invoke(lobby, this);
+                    OnLobbyJoined?.Invoke(LobbyInstance, this);
                 }
+                
+                _isJoiningLobby = false;
             }
         
             catch (LobbyServiceException e)
@@ -392,8 +446,9 @@ namespace LobbyPackage.Scripts
         #endregion
     
         #region HostMigration
-
+        
         private bool _isChangingHost;
+        private Coroutine _makeLobbyHostCo;
     
         /// <summary>
         /// Updating lobby with a new Host.
@@ -402,13 +457,31 @@ namespace LobbyPackage.Scripts
         /// <param name="player">Player to make the new host.</param>
         public void ChangeHost(Player player)
         {
-            if(!_canInteractWithLobby) return;
-        
             if(_isChangingHost) return;
             _isChangingHost = true;
 
             OnChangingHost?.Invoke();
-        
+            
+            if(_makeLobbyHostCo != null) StopCoroutine(_makeLobbyHostCo);
+            _makeLobbyHostCo = StartCoroutine(MakeHostTimeOut(player));
+        }
+
+        private IEnumerator MakeHostTimeOut(Player player)
+        {
+            var timeOutTimer = 0f;
+            while (!_canInteractWithLobby)
+            { 
+                Debug.Log(timeOutTimer);
+                if (timeOutTimer >= 15)
+                {
+                    OnFailedToChangeHost?.Invoke("Request Timed Out. Please Try Again!");
+                    _isChangingHost = false;
+                    yield break;
+                }
+                timeOutTimer += Time.deltaTime;
+                yield return null;
+            }
+
             try
             {
                 UpdateLobby(LobbyInstance.Id, new UpdateLobbyOptions
@@ -479,6 +552,8 @@ namespace LobbyPackage.Scripts
         private bool _isKickingPlayer;
         private bool _isRemovingPlayer;
         private bool _hostHasLeftLobby;
+        private Coroutine _leaveLobbyCo;
+        private Coroutine _kickFromLobbyCo;
     
         /// <summary>
         /// Leaving a lobby.
@@ -490,22 +565,60 @@ namespace LobbyPackage.Scripts
         /// <param name="onComplete">Callback when Leaving is completed.</param>
         public void LeaveLobby(Action onComplete = null)
         {
-            if(!_canInteractWithLobby) return;
-        
+            //if(!_canInteractWithLobby) return;
             if (_isLeavingLobby) { return; }
 
             _isLeavingLobby = true;
         
             OnLeavingLobby?.Invoke();
 
+            if(_leaveLobbyCo != null) StopCoroutine(_leaveLobbyCo);
+            _leaveLobbyCo = StartCoroutine(LeaveLobbyWithTimeOut(onComplete));
+        }
+
+        private IEnumerator LeaveLobbyWithTimeOut(Action onComplete)
+        {
+            var timer = 0f;
+            while (!_canInteractWithLobby)
+            {
+                if (timer >= 15)
+                {
+                    OnLobbyFailedToLeave?.Invoke("Request Timed Out. Please Try Again!");
+                    _isLeavingLobby = false;
+                    yield break;
+                }
+                timer += Time.deltaTime;
+                yield return null;
+            }
+
             if (LobbyInstance == null)
             {
                 _isLeavingLobby = false;
                 OnLobbyLeft?.Invoke(null, this);
                 onComplete?.Invoke();
-                return;
+                yield break;
             }
-        
+
+            var gameNetworkHandler = GameNetworkHandler.Instance;
+            
+            if (!gameNetworkHandler.SessionStarted)
+            {
+                if (NetworkManager.Singleton.IsListening)
+                {
+                    Debug.Log("Client disconnecting - User");
+                    
+                    if (IsLobbyHost())
+                    {
+                        gameNetworkHandler.CloseNetwork(false);
+                    }
+                    else
+                    {
+                        gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                    }
+                }
+                //NetworkManager.Singleton.Shutdown();
+            }
+
             try
             {
                 _hostHasLeftLobby = IsLobbyHost();
@@ -518,16 +631,16 @@ namespace LobbyPackage.Scripts
                         _isLeavingLobby = false;
                         onComplete?.Invoke();
                     });
-                    return;
+                    yield break;
                 }
-            
+
                 RemoveAPlayer(LobbyInstance.Id, playerId, () =>
                 {
                     _isLeavingLobby = false;
                     LobbyInstance = null;
                     OnLobbyLeft?.Invoke(LobbyInstance, this);
                     onComplete?.Invoke();
-                } );
+                });
             }
             catch (LobbyServiceException e)
             {
@@ -538,7 +651,7 @@ namespace LobbyPackage.Scripts
                 throw;
             }
         }
-    
+
         /// <summary>
         /// Kicking a player from lobby.
         /// Only host can Kick other players
@@ -546,20 +659,36 @@ namespace LobbyPackage.Scripts
         /// <param name="player">Player to kick.</param>
         public void KickAPlayer(Player player)
         {
-            if(!_canInteractWithLobby) return;
+            //if(!_canInteractWithLobby) return;
         
             if(_isKickingPlayer) return;
             _isKickingPlayer = true;
         
             OnKickingPlayer?.Invoke();
-        
+            
+            if(_kickFromLobbyCo != null) StopCoroutine(_kickFromLobbyCo);
+            _kickFromLobbyCo = StartCoroutine(KickAPlayerTimeOut(player));
+        }
+
+        private IEnumerator KickAPlayerTimeOut(Player player)
+        {
+            var timer = 0f;
+            while (!_canInteractWithLobby)
+            {
+                if (timer >= 15)
+                {
+                    OnPlayerFailedToKicked?.Invoke("Request Timed Out. Please Try Again!");
+                    _isKickingPlayer = false;
+                    yield break;
+                }
+                timer += Time.deltaTime;
+                yield return null;
+            }
+
             try
             {
-                RemoveAPlayer(LobbyInstance.Id, player.Id, () =>
-                {
-                    _isKickingPlayer = false;
-                });
-            
+                RemoveAPlayer(LobbyInstance.Id, player.Id, () => { _isKickingPlayer = false; });
+
                 PlayerKicked?.Invoke();
             }
             catch (LobbyServiceException e)
@@ -570,7 +699,7 @@ namespace LobbyPackage.Scripts
                 throw;
             }
         }
-    
+
         /// <summary>
         /// General function to remove a player from lobby.
         /// </summary>

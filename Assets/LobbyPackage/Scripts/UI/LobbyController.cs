@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using LobbyPackage.Scripts.UI.Notify;
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -59,6 +60,57 @@ namespace LobbyPackage.Scripts.UI
             _leaveButton.gameObject.SetActive(true);
         }
         
+        #region LeaveLobby
+        
+        private void LeavingLobby()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leaving Lobby", "Leaving Lobby",
+                this, NotifyCallType.Open);
+        }
+
+        private void LobbyLeft(Lobby arg1, GameLobby arg2)
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leaving Lobby", "Lobby Left",
+                this, NotifyCallType.Close);
+            CheckAndChangeState("MainLobby");
+        }
+
+        private void LobbyFailedToLeave(string msg)
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leaving Lobby", "Failed To Leave Lobby",
+                this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Error, "Leaving Lobby", msg, this, NotifyCallType.Open);
+        }
+
+        #endregion
+        
+        #region KickFromLobby
+        private void KickingFromLobby()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Kicking Player", "Kicking From Lobby",
+                this, NotifyCallType.Open);
+        }
+        
+        
+        private void PlayerKickedFromLobby()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Kicking Player", "Kicked From Lobby",
+                this, NotifyCallType.Close);
+        }
+        
+        private void FailedToKickFromLobby(string msg)
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Kicking Player", "Failed To Kick From Lobby",
+                this, NotifyCallType.Close);
+        }
+        
+        private void KickedFromLobby()
+        {
+            NotificationHelper.SendNotification(NotificationType.Error, "Kicked From Lobby", "You are Kicked From Lobby",
+                this, NotifyCallType.Open);
+        }
+        #endregion
+        
         #region LeaveSession
 
         private void LeavingSession()
@@ -66,29 +118,42 @@ namespace LobbyPackage.Scripts.UI
             NotificationHelper.SendNotification(NotificationType.Progress, "Leave Session","Leaving Session", this, NotifyCallType.Open);
         }
 
-        private void SessionLeft()
+        private void SessionLeft(bool sceneToChange, string sceneName)
         {
             NotificationHelper.SendNotification(NotificationType.Progress, "Leave Session","Session Left", this, NotifyCallType.Close);
         }
         
         #endregion
 
-        private async void EnableLobbyButton()
+        private async void EnableLobbyButton(bool shouldChangeScene, string sceneName)
         {
-            await Helper.LoadSceneAsync(() =>
+            if (shouldChangeScene)
             {
-                var shouldOpenPlayerPanel = false;
-                if (GameLobby.Instance.LobbyInstance != null)
+                await Helper.LoadSceneAsync(() =>
                 {
-                    shouldOpenPlayerPanel = GameLobby.Instance.LobbyInstance.Data["DestroyLobbyAfterSession"].Value != "true";
-                }
-                
-                CheckAndChangeState(shouldOpenPlayerPanel ? "PlayerPanel" : "LoginPanel");
-                _lobbyPanel.SetActive(true);
-                return true;
-            }, "Lobby");
+                    ShowLobbyPanel();
+                    return true;
+                }, sceneName);    
+            }
+            else
+            {
+                ShowLobbyPanel();
+            }
+            
             _lobbyButton.gameObject.SetActive(true);
             _leaveButton.gameObject.SetActive(false);
+        }
+        
+        private void ShowLobbyPanel()
+        {
+            var shouldOpenPlayerPanel = false;
+            if (GameLobby.Instance.LobbyInstance != null)
+            {
+                shouldOpenPlayerPanel = GameLobby.Instance.LobbyInstance.Data["DestroyLobbyAfterSession"].Value != "true";
+            }
+
+            CheckAndChangeState(shouldOpenPlayerPanel ? "PlayerPanel" : "LoginPanel");
+            _lobbyPanel.SetActive(true);
         }
 
         private void OnDisable()

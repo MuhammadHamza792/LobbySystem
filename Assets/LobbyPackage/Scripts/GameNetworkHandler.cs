@@ -10,32 +10,32 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace LobbyPackage.Scripts
 {
     public class GameNetworkHandler : Singleton<GameNetworkHandler>
     {
-        [SerializeField] private bool _setCustomRelaySize;
-        [SerializeField] private int _relaySize;
         [SerializeField] private bool _loadSeparateGameScene;
         [SerializeField] private string _sceneToLoad;
+        [SerializeField] private string _baseSceneToReturn;
     
         public static event Action OnStartingGame;
-        public static  Action OnGameStarted;
+        public static Action OnGameStarted;
         public static event Action<string> OnGameFailedToStart;
-
-        public static event Action OnStartingSession;
-        public static event Action OnSessionStarted;
         public static event Action OnSessionFailedToStart;
-    
-        public static event Action OnJoiningSession;
-        public static event Action OnSessionJoined;
+        
         public static event Action OnSessionFailedToJoin;
         public static event Action OnLeavingSession;
-        public static event Action OnSessionLeft;
+        public static event Action<bool, string> OnSessionLeft;
     
         public bool SessionStarted { private set; get; }
+        public bool InSession { set; get; }
+        
+        public string BaseSceneToReturn => _baseSceneToReturn;
     
+        private bool _setCustomRelaySize;
+        private int _relaySize;
         private bool _serverStarted;
         private bool _clientStarted;
         private bool _sessionLeft;
@@ -61,7 +61,8 @@ namespace LobbyPackage.Scripts
             }
             if(_sessionLeft) return;
             _sessionLeft = true;
-            NetworkManager.Singleton.Shutdown();
+            if (_isClosingNetwork) return;
+            CloseNetwork(true, _baseSceneToReturn);
         }
 
         private void OnDisable()
@@ -75,39 +76,49 @@ namespace LobbyPackage.Scripts
         private void ClientDisconnected(ulong client)
         {
             if (NetworkManager.Singleton.LocalClientId != client) return;
-            NetworkManager.Singleton.Shutdown();
+            CloseNetwork(true, _baseSceneToReturn);
         }
     
         private void ClientStarted(bool isHost)
         {
             if (isHost)
             {
-                Debug.Log("Server Started");
-                _isSessionStarting = false;
-                if(_startingHostTimeout == null) return;
-                if(_startingHostTimeoutCo == null) return;
-                Debug.Log("Host Timeout Coroutine Stopped");
-                StopCoroutine(_startingHostTimeoutCo);
-                _startingHostTimeout.Reset();
+                ResetHostSide();
+                ServerTimedOut = false;
             }
             else
             {
-                _isJoiningSession = false;
-                if(_startingClientTimeout == null) return;
-                if(_startingClientTimeoutCo == null) return;
-                Debug.Log("Client Timeout Coroutine Stopped");
-                StopCoroutine(_startingClientTimeoutCo);
-                _startingClientTimeout.Reset();
+                ResetClient();
+                ClientTimedOut = false;
             }
             
             SessionStarted = true;
         }
-    
-        
+
+        private void ResetHostSide()
+        {
+            _isSessionStarting = false;
+            if (_startingHostTimeout == null) return;
+            if (_startingHostTimeoutCo == null) return;
+            StopCoroutine(_startingHostTimeoutCo);
+            _startingHostTimeout.Reset();
+        }
+
+        private void ResetClient()
+        {
+            IsJoiningSession = false;
+            if (_startingClientTimeout == null) return;
+            if (_startingClientTimeoutCo == null) return;
+            StopCoroutine(_startingClientTimeoutCo);
+            _startingClientTimeout.Reset();
+        }
+
+
         #region StartGame
     
         private TimeOut _startingHostTimeout;
         private Coroutine _startingHostTimeoutCo;
+        public bool ServerTimedOut { get; private set; }
         private bool _isSessionStarting;
     
         public async void StartGame(string reg = null)
@@ -116,6 +127,8 @@ namespace LobbyPackage.Scripts
             _isSessionStarting = true;
             if(_startingHostTimeout is {IsTimerRunning: true}) return;
 
+            ServerTimedOut = false;
+            
             var gameLobby = GameLobby.Instance;
         
             if(!gameLobby.IsLobbyHost()) return;
@@ -130,13 +143,12 @@ namespace LobbyPackage.Scripts
         
             try
             {
-                var selectedRegion = gameRelay.Regions.FirstOrDefault(region => region == reg);
                 relayCode = await gameRelay.CreateRelay(_setCustomRelaySize ? _relaySize :
-                    gameLobby.LobbyInstance.MaxPlayers, selectedRegion);
+                    gameLobby.LobbyInstance.MaxPlayers, reg);
 
                 OnStartingGame?.Invoke();
 
-                _startingHostTimeout ??= new TimeOut(10);
+                _startingHostTimeout ??= new TimeOut(35);
             
                 if (_loadSeparateGameScene)
                 {
@@ -146,8 +158,11 @@ namespace LobbyPackage.Scripts
                         _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer( () =>
                         {
                             OnSessionFailedToStart?.Invoke();
+                            ServerTimedOut = true;
+                            SessionStarted = false;
+                            _isSessionStarting = false;
                             if(serverHasStarted)
-                                NetworkManager.Singleton.Shutdown();
+                                CloseNetwork(false);
                         }));
                         serverHasStarted = NetworkManager.Singleton.StartHost();
                         return serverHasStarted;
@@ -160,7 +175,7 @@ namespace LobbyPackage.Scripts
                     {
                         OnSessionFailedToStart?.Invoke();
                         if(_serverStarted)
-                            NetworkManager.Singleton.Shutdown();
+                            CloseNetwork(false);
                     }));
                     _serverStarted = NetworkManager.Singleton.StartHost();
                 }
@@ -198,7 +213,7 @@ namespace LobbyPackage.Scripts
             }
             catch (LobbyServiceException e)
             {
-                NetworkManager.Singleton.Shutdown();
+                CloseNetwork(false);
                 OnGameFailedToStart?.Invoke(e.Message);
                 _isSessionStarting = false;
                 SessionStarted = false;
@@ -213,18 +228,17 @@ namespace LobbyPackage.Scripts
 
         private TimeOut _startingClientTimeout;
         private Coroutine _startingClientTimeoutCo;
-        private bool _isJoiningSession;
+        public bool ClientTimedOut { private set; get; }
+        public bool IsJoiningSession { private set; get; }
     
-        public async void JoinGame()
+        public async void JoinGame(string relayCode, string plotId = null)
         {
-            if(_isJoiningSession) return;
-            _isJoiningSession = true;
+            if(IsJoiningSession) return;
+            IsJoiningSession = true;
             if(_startingClientTimeout is { IsTimerRunning: true }) return;
 
-            var gameLobby = GameLobby.Instance;
-        
-            var relayCode = gameLobby.LobbyInstance.Data["START_GAME"].Value;
-
+            ClientTimedOut = false;
+            
             var gameRelay = GameRelay.Instance;
         
             try
@@ -237,16 +251,17 @@ namespace LobbyPackage.Scripts
             
                 var serverData = new RelayServerData(relayToJoin, "dtls");
                 NetworkManager.Singleton.GetComponent<UnityTransport>().SetRelayServerData(serverData);
-                _startingClientTimeout ??= new TimeOut(10);
+                _startingClientTimeout ??= new TimeOut(35);
                 _startingClientTimeoutCo = StartCoroutine(_startingClientTimeout.StartTimer( () =>
                 {
                     OnSessionFailedToJoin?.Invoke();
                     if(_clientStarted)
-                        NetworkManager.Singleton.Shutdown();
+                        CloseNetwork(true, _baseSceneToReturn);
                     GameLobby.Instance.LeaveLobby(() =>
                     {
                         SessionStarted = false;
-                        _isJoiningSession = false;
+                        ClientTimedOut = true;
+                        IsJoiningSession = false;
                     });
                 }));
                 _clientStarted = NetworkManager.Singleton.StartClient();
@@ -257,7 +272,7 @@ namespace LobbyPackage.Scripts
                 GameLobby.Instance.LeaveLobby(() =>
                 {
                     SessionStarted = false;
-                    _isJoiningSession = false;
+                    IsJoiningSession = false;
                 });
                 Console.WriteLine(e);
                 throw;
@@ -273,7 +288,11 @@ namespace LobbyPackage.Scripts
         {
             if (isHost)
             {
-                StopHost();
+                OnLeavingSession?.Invoke();
+                StopGame(() =>
+                {
+                    CloseNetwork(false);
+                });
             }
             else
             {
@@ -284,32 +303,44 @@ namespace LobbyPackage.Scripts
         private void LeaveLobbyAndSession() => GameLobby.Instance.LeaveLobby(
             () =>
             {
-                NetworkManager.Singleton.Shutdown();
+                CloseNetwork(true, _baseSceneToReturn);
             });
 
-        private async void ClientStopped(bool hostStopped)
+        private void ClientStopped(bool hostStopped)
         {
-            if (hostStopped) return;
-            await OnClientStopped();
+            OnClientStopped(_shouldChangeScene, _sceneName);
+            _isClosingNetwork = false;
         }
-    
-        private void StopHost()
+
+        private bool _shouldChangeScene;
+        private string _sceneName;
+
+        private bool _isClosingNetwork;
+        public void CloseNetwork(bool shouldChangeScene, string sceneName = null)
         {
-            OnLeavingSession?.Invoke();
-            StopGame(() =>
-            {
-                NetworkManager.Singleton.Shutdown();
-                OnSessionLeft?.Invoke();
-            });
+            _isClosingNetwork = true;
+            _shouldChangeScene = shouldChangeScene;
+            _sceneName = sceneName;
+            NetworkManager.Singleton.Shutdown();
         }
+        
     
-        private async Task OnClientStopped()
+        private void OnClientStopped(bool shouldChangeScene, string sceneName = null)
         {
-            OnLeavingSession?.Invoke();
-            StopGame(() =>
+            if (!SessionStarted)
             {
-                OnSessionLeft?.Invoke();
-            });
+                SessionLeft(shouldChangeScene, sceneName);
+                return;
+            }
+            
+            OnLeavingSession?.Invoke();
+            StopGame(() => { SessionLeft(shouldChangeScene, sceneName); });
+        }
+
+        private void SessionLeft(bool shouldChangeScene, string sceneName)
+        {
+            OnSessionLeft?.Invoke(shouldChangeScene, sceneName);
+            InSession = false;
         }
 
         #endregion
@@ -321,6 +352,8 @@ namespace LobbyPackage.Scripts
         {
             if(_isSessionStoping) return;
             _isSessionStoping = true;
+            
+            if(!SessionStarted) return;
         
             try
             {
@@ -330,6 +363,8 @@ namespace LobbyPackage.Scripts
                 {
                     SessionStarted = false;
                     _isSessionStoping = false;
+                    ResetHostSide();
+                    ResetClient();
                     onComplete?.Invoke();
                     return;
                 }
@@ -344,12 +379,14 @@ namespace LobbyPackage.Scripts
                     Debug.Log($"Session Stopped");
                     SessionStarted = false;
                     _isSessionStoping = false;
+                    ResetHostSide();
+                    ResetClient();
                     onComplete?.Invoke();
                 });
             }
             catch (LobbyServiceException e)
             {
-                NetworkManager.Singleton.Shutdown();
+                CloseNetwork(true, _baseSceneToReturn);
                 OnGameFailedToStart?.Invoke(e.Message);
                 _isSessionStoping = false;
                 SessionStarted = false;

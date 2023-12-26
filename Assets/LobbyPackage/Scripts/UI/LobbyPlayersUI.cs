@@ -62,6 +62,7 @@ namespace LobbyPackage.Scripts.UI
         
         private void RefreshLobby(Lobby lobby)
         {
+            if(lobby == null) return;
             if(_players.Count == lobby.Players.Count) return;
             
             ClearLobby();
