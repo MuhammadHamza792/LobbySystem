@@ -39,6 +39,7 @@ namespace LobbyPackage.Scripts.UI.States
                 GameLobby.OnJoiningLobby += JoiningLobby;
                 GameLobby.OnLobbyJoined += LobbyJoined;
                 GameLobby.OnLobbyFailedToJoin += LobbyFailedToJoin;
+                GameLobby.OnLobbyUnableToJoin += LobbyUnableToJoin;
                 _joinToggle.onValueChanged.AddListener(JoinToggle);
             }
             
@@ -47,6 +48,7 @@ namespace LobbyPackage.Scripts.UI.States
                 GameLobby.OnJoiningLobby -= JoiningLobby;
                 GameLobby.OnLobbyJoined -= LobbyJoined;
                 GameLobby.OnLobbyFailedToJoin -= LobbyFailedToJoin;
+                GameLobby.OnLobbyUnableToJoin -= LobbyUnableToJoin;
                 _joinToggle.onValueChanged.RemoveListener(JoinToggle);
             }
 
@@ -107,6 +109,14 @@ namespace LobbyPackage.Scripts.UI.States
             NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Joining","Failed To Join Lobby",
                 this, NotifyCallType.Close);
             NotificationHelper.SendNotification(NotificationType.Error, "Lobby Joining",msg, this, NotifyCallType.Open);
+        }
+        
+        private void LobbyUnableToJoin()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Lobby Joining","Failed To Join Lobby",
+                this, NotifyCallType.Close);
+            NotificationHelper.SendNotification(NotificationType.Error, "Lobby Joining","Lobby unable to join as the host has restricted" +
+                " on joining when session has started.", this, NotifyCallType.Open);
         }
 
         private void CopyToClipBoard(string str) => GUIUtility.systemCopyBuffer = str;

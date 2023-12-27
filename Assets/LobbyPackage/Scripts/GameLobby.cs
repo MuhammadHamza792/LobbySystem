@@ -23,22 +23,23 @@ namespace LobbyPackage.Scripts
         #region Events
 
         public static event Action OnCreatingLobby;
-        public static event Action<Unity.Services.Lobbies.Models.Lobby, GameLobby> OnLobbyCreated; 
+        public static event Action<Lobby, GameLobby> OnLobbyCreated; 
         public static event Action<string> OnLobbyFailedToCreate;
     
         public static event Action OnJoiningLobby;
-        public static event Action<Unity.Services.Lobbies.Models.Lobby, GameLobby> OnLobbyJoined; 
+        public static event Action<Lobby, GameLobby> OnLobbyJoined; 
         public static event Action<string> OnLobbyFailedToJoin; 
+        public static event Action OnLobbyUnableToJoin; 
     
         public static event Action OnUpdatingLobby;
-        public static event Action<Unity.Services.Lobbies.Models.Lobby, GameLobby> OnLobbyUpdated; 
+        public static event Action<Lobby, GameLobby> OnLobbyUpdated; 
         public static event Action<string> OnLobbyFailedToUpdate;
     
         public static event Action OnLeavingLobby;
-        public static event Action<Unity.Services.Lobbies.Models.Lobby, GameLobby> OnLobbyLeft; 
+        public static event Action<Lobby, GameLobby> OnLobbyLeft; 
         public static event Action<string> OnLobbyFailedToLeave;
         public static event Action OnLobbyFailedToFind;
-        public static event Action<Unity.Services.Lobbies.Models.Lobby> OnSyncLobby;
+        public static event Action<Lobby> OnSyncLobby;
 
         public static event Action OnDestroyingLobby;
         public static event Action OnLobbyDestroyed; 
@@ -58,7 +59,7 @@ namespace LobbyPackage.Scripts
 
         #endregion
     
-        public Unity.Services.Lobbies.Models.Lobby LobbyInstance { private set; get; }
+        public Lobby LobbyInstance { private set; get; }
         public bool KickedFromLobby { private set; get; }
         public bool DestroyLobbyAfterSessionStarted => _destroyLobbyAfterSessionStarted;
     
@@ -202,10 +203,10 @@ namespace LobbyPackage.Scripts
             
             _joiningTries++;
 
-            if (LobbyInstance.Data["DestroyLobbyAfterSession"].Value == "true")
+            /*if (LobbyInstance.Data["DestroyLobbyAfterSession"].Value == "true")
             {
                 LobbyInstance = null;
-            }
+            }*/
         }
         
         private void LeaveLobbyAndEndSession()
@@ -279,8 +280,9 @@ namespace LobbyPackage.Scripts
                     {
                         { "LOBBY_NAME", new DataObject(DataObject.VisibilityOptions.Member, lobbyName)},
                         {"DestroyLobbyAfterSession",new DataObject(DataObject.VisibilityOptions.Public, destroyLobbyAfterSession)},
-                        { "START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0") },
+                        { "START_GAME", new DataObject(DataObject.VisibilityOptions.Member, "0") },
                         { "PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, "0") },
+                        { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "0") }
                     }
                 };
 
@@ -382,8 +384,18 @@ namespace LobbyPackage.Scripts
                 if (pass is { Length: >= 8 }) options.Password = pass;
             
                 var lobby = await LobbyService.Instance.JoinLobbyByCodeAsync(lobbyCode, options);
-            
+                
                 LobbyInstance = lobby;
+                
+                if (LobbyInstance.Data["DestroyLobbyAfterSession"].Value == "true" && LobbyInstance.Data["SESSION_STARTED"].Value == "1")
+                {
+                    OnLobbyUnableToJoin?.Invoke();
+                    LeaveLobby(() =>
+                    { 
+                        _isJoiningLobby = false;
+                    });
+                    return;
+                }
             
                 if (shouldUpdateUI)
                 {

@@ -83,6 +83,13 @@ namespace LobbyPackage.Scripts
         {
             if (isHost)
             {
+                GameLobby.Instance.UpdateLobby(GameLobby.Instance.LobbyInstance.Id, new UpdateLobbyOptions
+                {
+                    Data = new Dictionary<string, DataObject>
+                    {
+                        { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "1") },
+                    }
+                });
                 ResetHostSide();
                 ServerTimedOut = false;
             }
@@ -358,8 +365,7 @@ namespace LobbyPackage.Scripts
             try
             {
                 var gameLobby = GameLobby.Instance;
-                if (gameLobby.DestroyLobbyAfterSessionStarted ||
-                    !gameLobby.IsLobbyHost())
+                if (!gameLobby.IsLobbyHost())
                 {
                     SessionStarted = false;
                     _isSessionStoping = false;
@@ -368,11 +374,28 @@ namespace LobbyPackage.Scripts
                     onComplete?.Invoke();
                     return;
                 }
+
+                if (gameLobby.DestroyLobbyAfterSessionStarted)
+                {
+                    GameLobby.Instance.DestroyLobby(() =>
+                    {
+                        SessionStarted = false;
+                        _isSessionStoping = false;
+                        ResetHostSide();
+                        ResetClient();
+                        onComplete?.Invoke();    
+                    });    
+                    
+                    return;
+                }
+                
+                
                 gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
                 {
                     Data = new Dictionary<string, DataObject>
                     {
                         {"START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0")},
+                        { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "0") }, 
                     }
                 }, () =>
                 {

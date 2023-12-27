@@ -171,7 +171,7 @@ namespace LobbyPackage.Scripts
                 var response = await Lobbies.Instance.QueryLobbiesAsync(_lobbyQueries);
                 var allLobbies = response.Results;
 
-                var filteredLobbies = allLobbies.Where(lobby => lobby.Data["START_GAME"].Value == "0" ||
+                var filteredLobbies = allLobbies.Where(lobby => lobby.Data["SESSION_STARTED"].Value == "0" ||
                                                                 lobby.Data["DestroyLobbyAfterSession"].Value != "true").ToList();
                 
                     if(_lobbies.Count > 0)
