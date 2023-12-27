@@ -22,6 +22,8 @@ namespace LobbyPackage.Scripts.UI
         private void OnEnable()
         {
             _searchBar.onValueChanged.AddListener(OnSearch);
+            RefreshLobby(GameLobby.Instance.LobbyInstance);
+            RefreshLobbyData(GameLobby.Instance.LobbyInstance);
             GameLobby.OnSyncLobby += RefreshLobby;
             GameLobby.OnSyncLobby += RefreshLobbyData;
         }
@@ -62,7 +64,7 @@ namespace LobbyPackage.Scripts.UI
         
         private void RefreshLobby(Lobby lobby)
         {
-            if(lobby == null) return;
+            if (lobby == null) return;
             if(_players.Count == lobby.Players.Count) return;
             
             ClearLobby();
@@ -86,6 +88,7 @@ namespace LobbyPackage.Scripts.UI
 
         public void RefreshLobbyData(Lobby lobby)
         {
+            if(lobby == null) return;
             for (var index = 0; index < lobby.Players.Count; index++)
             {
                 var lobbyPlayer = lobby.Players[index];
@@ -93,24 +96,7 @@ namespace LobbyPackage.Scripts.UI
                 player.SetPlayerData(lobbyPlayer, lobby, lobbyPlayer.Id == lobby.HostId);
             }
         }
-
-        /*public void RemovePlayer(string playerID)
-        {
-            Debug.Log($"Main Id: {playerID}");
-            
-            foreach (var playerData in _players)
-            {
-                Debug.Log(playerData.PlayerID);
-            }
-            
-            var player = _players.FirstOrDefault(player => player.PlayerID == playerID);
-
-            if (player == null) return;
-            if (!_players.Contains(player)) return;
-            _players.Remove(player);
-            Destroy(player.gameObject);
-        }*/
-
+        
         private void ClearLobbyFromDelegate(Lobby lobby, GameLobby gameLobby) => ClearLobby();
 
         private void ClearLobby()

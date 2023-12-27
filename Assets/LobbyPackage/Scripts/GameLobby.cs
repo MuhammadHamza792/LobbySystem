@@ -178,6 +178,7 @@ namespace LobbyPackage.Scripts
 
         private void TryJoiningSession()
         {
+            Debug.Log("In Session: " + GameNetworkHandler.Instance.InSession);
             switch (GameNetworkHandler.Instance.InSession)
             {
                 case false when !CheckWhetherGameHasStarted():
@@ -187,6 +188,7 @@ namespace LobbyPackage.Scripts
                     return;
             }
 
+            Debug.Log("Is Joining Session: " + GameNetworkHandler.Instance.IsJoiningSession);
             if (GameNetworkHandler.Instance.IsJoiningSession) return;
             
             if (_joiningTries >= _maxJoiningTries)
@@ -195,10 +197,10 @@ namespace LobbyPackage.Scripts
                 return;
             }
             
+            Debug.Log("Joining Game");
             if (!IsLobbyHost())
             {
-                GameNetworkHandler.Instance.JoinGame(LobbyInstance.Data["START_GAME"].Value,
-                    LobbyInstance.Data["HOST_PLOT_DATA"].Value);
+                GameNetworkHandler.Instance.JoinGame(LobbyInstance.Data["START_GAME"].Value);
             }
             
             _joiningTries++;
@@ -227,7 +229,12 @@ namespace LobbyPackage.Scripts
             });
         }
 
-        private bool CheckWhetherGameHasStarted() => LobbyInstance.Data["START_GAME"].Value != "0";
+        private bool CheckWhetherGameHasStarted()
+        {
+            Debug.Log(LobbyInstance.Name);
+            Debug.Log(LobbyInstance.Data["START_GAME"].Value != "0");
+            return LobbyInstance.Data["START_GAME"].Value != "0";
+        }
 
         private bool CheckPlayerIsInLobby()
         {
@@ -281,7 +288,6 @@ namespace LobbyPackage.Scripts
                         { "LOBBY_NAME", new DataObject(DataObject.VisibilityOptions.Member, lobbyName)},
                         {"DestroyLobbyAfterSession",new DataObject(DataObject.VisibilityOptions.Public, destroyLobbyAfterSession)},
                         { "START_GAME", new DataObject(DataObject.VisibilityOptions.Member, "0") },
-                        { "PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, "0") },
                         { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "0") }
                     }
                 };
@@ -438,12 +444,13 @@ namespace LobbyPackage.Scripts
 
                 var lobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyID, options);
 
+                LobbyInstance = lobby;
+                
                 if (shouldUpdateUI)
                 {
                     OnLobbyJoined?.Invoke(lobby, this);
                 }
             
-                LobbyInstance = lobby;
                 _isJoiningLobby = false;
             }
         
@@ -542,6 +549,7 @@ namespace LobbyPackage.Scripts
             {
                 Debug.Log("Updating Lobby");
                 var lobby = await Lobbies.Instance.UpdateLobbyAsync(lobbyId, lobbyOptions);
+                Debug.Log("Lobby Updated");
                 LobbyInstance = lobby;
                 _isUpdatingLobby = false;
                 OnLobbyUpdated?.Invoke(lobby, this);

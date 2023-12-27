@@ -83,13 +83,6 @@ namespace LobbyPackage.Scripts
         {
             if (isHost)
             {
-                GameLobby.Instance.UpdateLobby(GameLobby.Instance.LobbyInstance.Id, new UpdateLobbyOptions
-                {
-                    Data = new Dictionary<string, DataObject>
-                    {
-                        { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "1") },
-                    }
-                });
                 ResetHostSide();
                 ServerTimedOut = false;
             }
@@ -213,10 +206,15 @@ namespace LobbyPackage.Scripts
                 {
                     Data = new Dictionary<string, DataObject>
                     {
-                        {"START_GAME", new DataObject(DataObject.VisibilityOptions.Public, relayCode)},
-                        {"PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, gameLobby.LobbyInstance.Players.Count.ToString())}
+                        {"START_GAME", new DataObject(DataObject.VisibilityOptions.Member, relayCode)},
+                        {"PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, gameLobby.LobbyInstance.Players.Count.ToString())},
+                        {"SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "1") }
                     }
-                }, () => _isSessionStarting = false);
+                }, () =>
+                {
+                    Debug.Log("Relay Code Updated");
+                    _isSessionStarting = false;
+                });
             }
             catch (LobbyServiceException e)
             {
@@ -238,7 +236,7 @@ namespace LobbyPackage.Scripts
         public bool ClientTimedOut { private set; get; }
         public bool IsJoiningSession { private set; get; }
     
-        public async void JoinGame(string relayCode, string plotId = null)
+        public async void JoinGame(string relayCode)
         {
             if(IsJoiningSession) return;
             IsJoiningSession = true;
@@ -394,7 +392,7 @@ namespace LobbyPackage.Scripts
                 {
                     Data = new Dictionary<string, DataObject>
                     {
-                        {"START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0")},
+                        { "START_GAME", new DataObject(DataObject.VisibilityOptions.Member, "0")},
                         { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "0") }, 
                     }
                 }, () =>

@@ -174,14 +174,14 @@ namespace LobbyPackage.Scripts
                 var filteredLobbies = allLobbies.Where(lobby => lobby.Data["SESSION_STARTED"].Value == "0" ||
                                                                 lobby.Data["DestroyLobbyAfterSession"].Value != "true").ToList();
                 
-                    if(_lobbies.Count > 0)
-                        _lobbies.Clear();
+                if(_lobbies.Count > 0)
+                    _lobbies.Clear();
                 
-                    foreach (var lobby in filteredLobbies)
-                    {
-                        if (lobby == null) continue;
-                        _lobbies.Add(lobby);
-                    }
+                foreach (var lobby in filteredLobbies)
+                {
+                    if (lobby == null) continue;
+                    _lobbies.Add(lobby);
+                }
                 
             
                 if (_lobbies.Count == 0)

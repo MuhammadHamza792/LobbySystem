@@ -30,6 +30,8 @@ namespace LobbyPackage.Scripts
     
         private void Start()
         {
+            Application.runInBackground = true;
+            
             var options = new InitializationOptions();
 #if UNITY_EDITOR
             options.SetProfile(ClonesManager.IsClone() ? ClonesManager.GetArgument() : "Primary");
