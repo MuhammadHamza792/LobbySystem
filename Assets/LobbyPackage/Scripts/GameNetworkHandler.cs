@@ -334,6 +334,7 @@ namespace LobbyPackage.Scripts
         {
             if (!SessionStarted)
             {
+                ResetState();
                 SessionLeft(shouldChangeScene, sceneName);
                 return;
             }
@@ -377,10 +378,7 @@ namespace LobbyPackage.Scripts
                 {
                     GameLobby.Instance.DestroyLobby(() =>
                     {
-                        SessionStarted = false;
-                        _isSessionStoping = false;
-                        ResetHostSide();
-                        ResetClient();
+                        ResetState();
                         onComplete?.Invoke();    
                     });    
                     
@@ -398,10 +396,7 @@ namespace LobbyPackage.Scripts
                 }, () =>
                 {
                     Debug.Log($"Session Stopped");
-                    SessionStarted = false;
-                    _isSessionStoping = false;
-                    ResetHostSide();
-                    ResetClient();
+                    ResetState();
                     onComplete?.Invoke();
                 });
             }
@@ -415,6 +410,15 @@ namespace LobbyPackage.Scripts
                 throw;
             }
         }
+
+        private void ResetState()
+        {
+            SessionStarted = false;
+            _isSessionStoping = false;
+            ResetHostSide();
+            ResetClient();
+        }
+
         #endregion
     }
 }
