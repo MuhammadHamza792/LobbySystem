@@ -43,6 +43,7 @@ namespace LobbyPackage.Scripts.UI
             GameNetworkHandler.OnSessionFailedToStart += SessionFailedToStart;
             GameNetworkHandler.OnSessionLeft += EnableLobbyButton;
             GameNetworkHandler.OnLeavingSession += LeavingSession;
+            GameNetworkHandler.OnSessionFailedToLeave += SessionFailedToLeave;
             GameNetworkHandler.OnSessionLeft += SessionLeft;
             GameNetworkHandler.OnGameStarted += EnableLeaveButton;
         }
@@ -117,6 +118,12 @@ namespace LobbyPackage.Scripts.UI
         {
             NotificationHelper.SendNotification(NotificationType.Progress, "Leave Session","Leaving Session", this, NotifyCallType.Open);
         }
+        
+        private void SessionFailedToLeave()
+        {
+            NotificationHelper.SendNotification(NotificationType.Progress, "Leave Session",
+                "Abandoning Session", this, NotifyCallType.Open);
+        }
 
         private void SessionLeft(bool sceneToChange, string sceneName)
         {
@@ -161,6 +168,7 @@ namespace LobbyPackage.Scripts.UI
             GameNetworkHandler.OnSessionLeft -= EnableLobbyButton;
             GameNetworkHandler.OnLeavingSession -= LeavingSession;
             GameNetworkHandler.OnSessionLeft -= SessionLeft;
+            GameNetworkHandler.OnSessionFailedToLeave -= SessionFailedToLeave;
             GameNetworkHandler.OnGameStarted -= EnableLeaveButton;
         }
 

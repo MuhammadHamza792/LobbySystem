@@ -28,6 +28,7 @@ namespace LobbyPackage.Scripts
         public static event Action OnSessionFailedToJoin;
         public static event Action OnLeavingSession;
         public static event Action<bool, string> OnSessionLeft;
+        public static event Action OnSessionFailedToLeave;
     
         public bool SessionStarted { private set; get; }
         public bool InSession { set; get; }
@@ -199,33 +200,26 @@ namespace LobbyPackage.Scripts
                 Debug.Log(e);
                 return;
             }
-        
-            try
+            
+            gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
             {
-                gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
+                Data = new Dictionary<string, DataObject>
                 {
-                    Data = new Dictionary<string, DataObject>
-                    {
-                        {"START_GAME", new DataObject(DataObject.VisibilityOptions.Member, relayCode)},
-                        {"PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, gameLobby.LobbyInstance.Players.Count.ToString())},
-                        {"SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "1") }
-                    }
-                }, () =>
-                {
-                    Debug.Log("Relay Code Updated");
-                    _isSessionStarting = false;
-                });
-            }
-            catch (LobbyServiceException e)
+                    {"START_GAME", new DataObject(DataObject.VisibilityOptions.Member, relayCode)},
+                    {"PLAYER_COUNT", new DataObject(DataObject.VisibilityOptions.Member, gameLobby.LobbyInstance.Players.Count.ToString())},
+                    {"SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "1") }
+                }
+            }, () =>
             {
-                CloseNetwork(false);
-                OnGameFailedToStart?.Invoke(e.Message);
+                Debug.Log("Relay Code Updated");
+                _isSessionStarting = false;
+            }, () =>
+            {
+                CloseNetwork(true, _baseSceneToReturn);
+                OnGameFailedToStart?.Invoke("Failed to Start Game.");
                 _isSessionStarting = false;
                 SessionStarted = false;
-                Debug.Log(e);
-                throw;
-            }
-        
+            });
         }
         #endregion
 
@@ -267,6 +261,11 @@ namespace LobbyPackage.Scripts
                         SessionStarted = false;
                         ClientTimedOut = true;
                         IsJoiningSession = false;
+                    }, () =>
+                    {
+                        SessionStarted = false;
+                        ClientTimedOut = true;
+                        IsJoiningSession = false;
                     });
                 }));
                 _clientStarted = NetworkManager.Singleton.StartClient();
@@ -275,6 +274,10 @@ namespace LobbyPackage.Scripts
             {
                 OnGameFailedToStart?.Invoke(e.Message);
                 GameLobby.Instance.LeaveLobby(() =>
+                {
+                    SessionStarted = false;
+                    IsJoiningSession = false;
+                }, () =>
                 {
                     SessionStarted = false;
                     IsJoiningSession = false;
@@ -296,7 +299,7 @@ namespace LobbyPackage.Scripts
                 OnLeavingSession?.Invoke();
                 StopGame(() =>
                 {
-                    CloseNetwork(false);
+                    CloseNetwork(true, _baseSceneToReturn);
                 });
             }
             else
@@ -307,6 +310,9 @@ namespace LobbyPackage.Scripts
 
         private void LeaveLobbyAndSession() => GameLobby.Instance.LeaveLobby(
             () =>
+            {
+                CloseNetwork(true, _baseSceneToReturn);
+            }, () =>
             {
                 CloseNetwork(true, _baseSceneToReturn);
             });
@@ -360,55 +366,55 @@ namespace LobbyPackage.Scripts
             _isSessionStoping = true;
             
             if(!SessionStarted) return;
-        
-            try
+            
+            var gameLobby = GameLobby.Instance;
+            if (!gameLobby.IsLobbyHost())
             {
-                var gameLobby = GameLobby.Instance;
-                if (!gameLobby.IsLobbyHost())
+                ResetState();
+                onComplete?.Invoke();
+                return;
+            }
+            
+            if (gameLobby.DestroyLobbyAfterSessionStarted)
+            {
+                GameLobby.Instance.DestroyLobby(() =>
                 {
-                    SessionStarted = false;
-                    _isSessionStoping = false;
-                    ResetHostSide();
-                    ResetClient();
-                    onComplete?.Invoke();
-                    return;
-                }
-
-                if (gameLobby.DestroyLobbyAfterSessionStarted)
-                {
-                    GameLobby.Instance.DestroyLobby(() =>
-                    {
-                        ResetState();
-                        onComplete?.Invoke();    
-                    });    
-                    
-                    return;
-                }
-                
-                
-                gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
-                {
-                    Data = new Dictionary<string, DataObject>
-                    {
-                        { "START_GAME", new DataObject(DataObject.VisibilityOptions.Member, "0")},
-                        { "SESSION_STARTED", new DataObject(DataObject.VisibilityOptions.Public, "0") }, 
-                    }
+                    ResetState();
+                    onComplete?.Invoke();    
                 }, () =>
                 {
-                    Debug.Log($"Session Stopped");
                     ResetState();
-                    onComplete?.Invoke();
-                });
+                    GameLobby.Instance.AbandonLobby();
+                });    
+                
+                return;
             }
-            catch (LobbyServiceException e)
+            
+            
+            gameLobby.UpdateLobby(gameLobby.LobbyInstance.Id, new UpdateLobbyOptions 
             {
-                CloseNetwork(true, _baseSceneToReturn);
-                OnGameFailedToStart?.Invoke(e.Message);
-                _isSessionStoping = false;
-                SessionStarted = false;
-                Debug.Log(e);
-                throw;
-            }
+                Data = new Dictionary<string, DataObject>
+                {
+                    {"START_GAME", new DataObject(DataObject.VisibilityOptions.Public, "0")},
+                }
+            }, () =>
+            {
+                ResetState();
+                onComplete?.Invoke();
+            }, () =>
+            {
+                ResetState();
+                GameFailedToStop();
+            });
+            
+        }
+
+        private void GameFailedToStop()
+        {
+            SessionStarted = false;
+            OnSessionFailedToLeave?.Invoke();
+            CloseNetwork(true, _baseSceneToReturn);
+            _isSessionStoping = false;
         }
 
         private void ResetState()

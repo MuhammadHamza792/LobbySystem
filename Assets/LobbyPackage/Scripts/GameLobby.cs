@@ -226,6 +226,11 @@ namespace LobbyPackage.Scripts
                 gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
                 SessionFailedToJoin?.Invoke();
                 _joiningTries = 0;
+            }, () =>
+            {
+                gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                SessionFailedToJoin?.Invoke();
+                _joiningTries = 0;
             });
         }
 
@@ -399,6 +404,9 @@ namespace LobbyPackage.Scripts
                     LeaveLobby(() =>
                     { 
                         _isJoiningLobby = false;
+                    }, () =>
+                    {
+                        _isJoiningLobby = false;
                     });
                     return;
                 }
@@ -501,24 +509,20 @@ namespace LobbyPackage.Scripts
                 yield return null;
             }
 
-            try
+            
+            UpdateLobby(LobbyInstance.Id, new UpdateLobbyOptions
             {
-                UpdateLobby(LobbyInstance.Id, new UpdateLobbyOptions
-                {
-                    HostId = player.Id
-                }, () =>
-                {
-                    _isChangingHost = false;
-                    OnHostChanged?.Invoke();
-                });
-            }
-            catch (LobbyServiceException e)
+                HostId = player.Id
+            }, () =>
             {
-                OnFailedToChangeHost?.Invoke(e.Message);
                 _isChangingHost = false;
-                Debug.Log(e);
-                throw;
-            }
+                OnHostChanged?.Invoke();
+            }, () =>
+            {
+                OnFailedToChangeHost?.Invoke("Failed to change host.");
+                _isChangingHost = false;
+            });
+            
         }
 
         #endregion
@@ -534,10 +538,10 @@ namespace LobbyPackage.Scripts
         /// <param name="lobbyId">Id of the lobby to update.</param>
         /// <param name="lobbyOptions">Updated options i.e Lobby options we've set in lobby creation.</param>
         /// <param name="onComplete">Callback when updating is completed.</param>
-        public async void UpdateLobby(string lobbyId, UpdateLobbyOptions lobbyOptions, Action onComplete = null) =>
-            await UpdateLobbyAsync(lobbyId, lobbyOptions, onComplete);
+        public async void UpdateLobby(string lobbyId, UpdateLobbyOptions lobbyOptions, Action onComplete = null, Action onFailed = null) =>
+            await UpdateLobbyAsync(lobbyId, lobbyOptions, onComplete, onFailed);
 
-        private async Task UpdateLobbyAsync(string lobbyId, UpdateLobbyOptions lobbyOptions, Action onComplete = null)
+        private async Task UpdateLobbyAsync(string lobbyId, UpdateLobbyOptions lobbyOptions, Action onComplete = null, Action onFailed = null)
         {
             if(_isUpdatingLobby) return;
 
@@ -549,7 +553,6 @@ namespace LobbyPackage.Scripts
             {
                 Debug.Log("Updating Lobby");
                 var lobby = await Lobbies.Instance.UpdateLobbyAsync(lobbyId, lobbyOptions);
-                Debug.Log("Lobby Updated");
                 LobbyInstance = lobby;
                 _isUpdatingLobby = false;
                 OnLobbyUpdated?.Invoke(lobby, this);
@@ -558,6 +561,7 @@ namespace LobbyPackage.Scripts
             catch (Exception e)
             {
                 OnLobbyFailedToUpdate?.Invoke(e.Message);
+                onFailed?.Invoke();
                 _isUpdatingLobby = false;
                 Console.WriteLine(e);
                 throw;
@@ -583,7 +587,7 @@ namespace LobbyPackage.Scripts
         /// Dealing with cases whether it was successful or not.
         /// </summary>
         /// <param name="onComplete">Callback when Leaving is completed.</param>
-        public void LeaveLobby(Action onComplete = null)
+        public void LeaveLobby(Action onComplete = null, Action onFailed = null)
         {
             //if(!_canInteractWithLobby) return;
             if (_isLeavingLobby) { return; }
@@ -593,10 +597,10 @@ namespace LobbyPackage.Scripts
             OnLeavingLobby?.Invoke();
 
             if(_leaveLobbyCo != null) StopCoroutine(_leaveLobbyCo);
-            _leaveLobbyCo = StartCoroutine(LeaveLobbyWithTimeOut(onComplete));
+            _leaveLobbyCo = StartCoroutine(LeaveLobbyWithTimeOut(onComplete, onFailed));
         }
 
-        private IEnumerator LeaveLobbyWithTimeOut(Action onComplete)
+        private IEnumerator LeaveLobbyWithTimeOut(Action onComplete, Action onFailed)
         {
             var timer = 0f;
             while (!_canInteractWithLobby)
@@ -604,6 +608,7 @@ namespace LobbyPackage.Scripts
                 if (timer >= 15)
                 {
                     OnLobbyFailedToLeave?.Invoke("Request Timed Out. Please Try Again!");
+                    onFailed?.Invoke();
                     _isLeavingLobby = false;
                     yield break;
                 }
@@ -619,57 +624,45 @@ namespace LobbyPackage.Scripts
                 yield break;
             }
 
-            var gameNetworkHandler = GameNetworkHandler.Instance;
-            
-            if (!gameNetworkHandler.SessionStarted)
+            if (!GameNetworkHandler.Instance.SessionStarted)
             {
                 if (NetworkManager.Singleton.IsListening)
                 {
                     Debug.Log("Client disconnecting - User");
-                    
-                    if (IsLobbyHost())
-                    {
-                        gameNetworkHandler.CloseNetwork(false);
-                    }
-                    else
-                    {
-                        gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
-                    }
+                    GameNetworkHandler.Instance.CloseNetwork(true, GameNetworkHandler.Instance.BaseSceneToReturn);
                 }
-                //NetworkManager.Singleton.Shutdown();
             }
-
-            try
+            
+            _hostHasLeftLobby = IsLobbyHost();
+            var playerId = AuthenticationService.Instance.PlayerId;
+            if (_hostHasLeftLobby && _destroyLobbyWithHost)
             {
-                _hostHasLeftLobby = IsLobbyHost();
-                var playerId = AuthenticationService.Instance.PlayerId;
-                if (_hostHasLeftLobby && _destroyLobbyWithHost)
-                {
-                    OnLobbyLeft?.Invoke(LobbyInstance, this);
-                    DestroyLobby(() =>
-                    {
-                        _isLeavingLobby = false;
-                        onComplete?.Invoke();
-                    });
-                    yield break;
-                }
-
-                RemoveAPlayer(LobbyInstance.Id, playerId, () =>
+                DestroyLobby(() =>
                 {
                     _isLeavingLobby = false;
-                    LobbyInstance = null;
                     OnLobbyLeft?.Invoke(LobbyInstance, this);
                     onComplete?.Invoke();
+                }, () =>
+                {
+                    _isLeavingLobby = false;
+                    onFailed?.Invoke();
+                    OnLobbyFailedToLeave?.Invoke("Lobby Failed To Leave");
                 });
+                yield break;
             }
-            catch (LobbyServiceException e)
+
+            RemoveAPlayer(LobbyInstance.Id, playerId, () =>
             {
                 _isLeavingLobby = false;
-                if (IsLobbyHost()) _hostHasLeftLobby = false;
-                OnLobbyFailedToLeave?.Invoke(e.Message);
-                Debug.Log(e);
-                throw;
-            }
+                LobbyInstance = null;
+                OnLobbyLeft?.Invoke(LobbyInstance, this);
+                onComplete?.Invoke();
+            }, () =>
+            {
+                onFailed?.Invoke();
+                _isLeavingLobby = false;
+                OnLobbyFailedToLeave?.Invoke("Failed to Leave The Lobby");
+            });
         }
 
         /// <summary>
@@ -679,8 +672,6 @@ namespace LobbyPackage.Scripts
         /// <param name="player">Player to kick.</param>
         public void KickAPlayer(Player player)
         {
-            //if(!_canInteractWithLobby) return;
-        
             if(_isKickingPlayer) return;
             _isKickingPlayer = true;
         
@@ -705,19 +696,16 @@ namespace LobbyPackage.Scripts
                 yield return null;
             }
 
-            try
+            
+            RemoveAPlayer(LobbyInstance.Id, player.Id, () =>
             {
-                RemoveAPlayer(LobbyInstance.Id, player.Id, () => { _isKickingPlayer = false; });
-
                 PlayerKicked?.Invoke();
-            }
-            catch (LobbyServiceException e)
-            {
                 _isKickingPlayer = false;
-                OnPlayerFailedToKicked?.Invoke(e.Message);
-                Debug.Log(e);
-                throw;
-            }
+            }, () =>
+            {
+                OnPlayerFailedToKicked?.Invoke("Player Failed to Kicked");
+                _isKickingPlayer = false;
+            });
         }
 
         /// <summary>
@@ -726,11 +714,11 @@ namespace LobbyPackage.Scripts
         /// <param name="lobbyId">From the lobby.</param>
         /// <param name="playerId">Player to remove.</param>
         /// <param name="onComplete">On player removed callback.</param>
-        public async void RemoveAPlayer(string lobbyId, string playerId, Action onComplete = null)
-        {
-            await RemoveAPlayerAsync(lobbyId, playerId, onComplete);
-        }
-        private async Task RemoveAPlayerAsync(string lobbyId, string playerId, Action onComplete = null)
+        /// <param name="onFailed">On player failed to remove callback.</param>
+        private async void RemoveAPlayer(string lobbyId, string playerId, Action onComplete = null, Action onFailed = null) => 
+            await RemoveAPlayerAsync(lobbyId, playerId, onComplete, onFailed);
+
+        private async Task RemoveAPlayerAsync(string lobbyId, string playerId, Action onComplete = null, Action onFailed = null)
         {
             if(_isRemovingPlayer) return;
             _isRemovingPlayer = true;
@@ -743,6 +731,7 @@ namespace LobbyPackage.Scripts
             }
             catch (LobbyServiceException e)
             {
+                onFailed?.Invoke();
                 _isRemovingPlayer = false;
                 Debug.Log(e);
                 throw;
@@ -759,8 +748,8 @@ namespace LobbyPackage.Scripts
         /// Only Host can Destroy Lobby.
         /// </summary>
         /// <param name="onComplete">On Lobby Destroyed callback.</param>
-        public async void DestroyLobby(Action onComplete = null) => await AsyncDestroyLobby(onComplete);
-        private async Task AsyncDestroyLobby(Action onComplete)
+        public async void DestroyLobby(Action onComplete = null, Action onFailed = null) => await AsyncDestroyLobby(onComplete, onFailed);
+        private async Task AsyncDestroyLobby(Action onComplete, Action onFailed = null)
         {
             if(_isDestroyingLobby) return;
             _isDestroyingLobby = true;
@@ -788,10 +777,13 @@ namespace LobbyPackage.Scripts
             {
                 OnLobbyFailedToDestroy?.Invoke(e.Message);
                 _isDestroyingLobby = false;
+                onFailed?.Invoke();
                 Debug.Log(e);
                 throw;
             }
         }
+
+        public void AbandonLobby() => LobbyInstance = null;
 
         #endregion
 
