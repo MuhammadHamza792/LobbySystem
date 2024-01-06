@@ -97,7 +97,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 0}
+  m_LightingDataAsset: {fileID: 112000000, guid: 4431675e45e7aa8449704d432f7a13e0, type: 2}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -268,6 +268,10 @@ PrefabInstance:
     - target: {fileID: 7025187513573554002, guid: 068aa8c255fdfe2429c04d6e4c1558b5, type: 3}
       propertyPath: m_Name
       value: Lobby
+      objectReference: {fileID: 0}
+    - target: {fileID: 8676140100897940625, guid: 068aa8c255fdfe2429c04d6e4c1558b5, type: 3}
+      propertyPath: _destroyLobbyWithHost
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

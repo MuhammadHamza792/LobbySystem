@@ -175,6 +175,9 @@ namespace LobbyPackage.Scripts
                     _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer( () =>
                     {
                         OnSessionFailedToStart?.Invoke();
+                        ServerTimedOut = true;
+                        SessionStarted = false;
+                        _isSessionStarting = false;
                         if(_serverStarted)
                             CloseNetwork(false);
                     }));

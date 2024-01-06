@@ -172,7 +172,7 @@ namespace LobbyPackage.Scripts
             }
         
             OnSyncLobby?.Invoke(LobbyInstance);
-            
+            if (IsLobbyHost()) return;
             TryJoiningSession();
         }
 
