@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "displayName": "MHZ-LobbySystem",
   "unity": "2020.3",
-  "unityRelease": "0b5",
   "dependencies": {
     "com.unity.textmeshpro": "3.0.9",
     "com.unity.services.relay": "1.0.5",
