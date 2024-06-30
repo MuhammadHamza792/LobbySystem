@@ -1,0 +1,22 @@
+{
+  "name": "com.MHZ.LobbySystem",
+  "version": "1.0.0",
+  "displayName": "MHZ-LobbySystem",
+  "unity": "2020.3",
+  "unityRelease": "0b5",
+  "dependencies": {
+    "com.unity.textmeshpro": "3.0.9",
+    "com.unity.services.relay": "1.0.5",
+    "com.unity.services.lobby": "1.2.1",
+    "com.unity.netcode.gameobjects": "1.6.0"
+  },
+  "keywords": [
+    "mhzLobby",
+    "lobbySystem",
+    "lobbysystem"
+  ],
+  "author": {
+    "name": "MHZ",
+    "email": "hamzasmail792@gmail.com"
+  }
+}
