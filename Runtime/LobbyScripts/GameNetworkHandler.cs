@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using MHZ.HelperClasses;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
@@ -16,67 +17,69 @@ namespace MHZ.LobbyScripts
         [SerializeField] private bool _loadSeparateGameScene;
         [SerializeField] private string _sceneToLoad;
         [SerializeField] private string _baseSceneToReturn;
-    
+
         public static event Action OnStartingGame;
         public static Action OnGameStarted;
         public static event Action<string> OnGameFailedToStart;
         public static event Action OnSessionFailedToStart;
-        
+
         public static event Action OnSessionFailedToJoin;
         public static event Action OnLeavingSession;
         public static event Action<bool, string> OnSessionLeft;
         public static event Action OnSessionFailedToLeave;
-    
+
         public bool SessionStarted { private set; get; }
         public bool InSession { set; get; }
-        
+
         public string BaseSceneToReturn => _baseSceneToReturn;
-    
+        public bool LoadSeparateGameScene => _loadSeparateGameScene;
+
         private bool _setCustomRelaySize;
         private int _relaySize;
         private bool _serverStarted;
         private bool _clientStarted;
         private bool _sessionLeft;
-    
+
         private void OnEnable()
         {
-            NetworkController.OnClientConnected  += ClientStarted;
+            NetworkController.OnClientConnected += ClientStarted;
             NetworkManager.Singleton.OnClientDisconnectCallback += ClientDisconnected;
             NetworkManager.Singleton.OnClientStopped += ClientStopped;
         }
-    
-    
+
+
         /// <summary>
         /// Checks If Host Has Crashed.
         /// </summary>
         private void Update()
         {
-            if(GameLobby.Instance.IsLobbyHost()) return;
+            if (GameLobby.Instance.IsLobbyHost()) return;
             if (!NetworkManager.Singleton.ShutdownInProgress)
             {
                 _sessionLeft = false;
                 return;
             }
-            if(_sessionLeft) return;
+
+            if (_sessionLeft) return;
             _sessionLeft = true;
             if (_isClosingNetwork) return;
-            CloseNetwork(true, _baseSceneToReturn);
+            CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
         }
 
         private void OnDisable()
         {
             NetworkController.OnClientConnected -= ClientStarted;
-            if(NetworkManager.Singleton == null) return;
+            if (NetworkManager.Singleton == null) return;
             NetworkManager.Singleton.OnClientDisconnectCallback -= ClientDisconnected;
             NetworkManager.Singleton.OnClientStopped -= ClientStopped;
         }
-        
+
         private void ClientDisconnected(ulong client)
         {
             if (NetworkManager.Singleton.LocalClientId != client) return;
-            CloseNetwork(true, _baseSceneToReturn);
+            CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
         }
-    
+
         private void ClientStarted(bool isHost)
         {
             if (isHost)
@@ -89,7 +92,7 @@ namespace MHZ.LobbyScripts
                 ResetClient();
                 ClientTimedOut = false;
             }
-            
+
             SessionStarted = true;
         }
 
@@ -113,74 +116,80 @@ namespace MHZ.LobbyScripts
 
 
         #region StartGame
-    
+
         private TimeOut _startingHostTimeout;
         private Coroutine _startingHostTimeoutCo;
         public bool ServerTimedOut { get; private set; }
         private bool _isSessionStarting;
-    
+
         public async void StartGame(string reg = null)
         {
-            if(_isSessionStarting) return;
+            if (_isSessionStarting) return;
             _isSessionStarting = true;
-            if(_startingHostTimeout is {IsTimerRunning: true}) return;
+            if (_startingHostTimeout is { IsTimerRunning: true }) return;
 
             ServerTimedOut = false;
-            
+
             var gameLobby = GameLobby.Instance;
-        
-            if(!gameLobby.IsLobbyHost()) return;
-        
-            string relayCode;
+
+            if (!gameLobby.IsLobbyHost()) return;
+
+            var relayCode = string.Empty;
             bool serverStarted;
 
             _setCustomRelaySize = gameLobby.HasCustomConnection;
             _relaySize = gameLobby.NumbersOfCustomConnections;
-        
+
             var gameRelay = GameRelay.Instance;
-        
+
             try
             {
-                relayCode = await gameRelay.CreateRelay(_setCustomRelaySize ? _relaySize :
-                    gameLobby.LobbyInstance.MaxPlayers, reg);
-
                 OnStartingGame?.Invoke();
 
                 _startingHostTimeout ??= new TimeOut(35);
-            
+
                 if (_loadSeparateGameScene)
                 {
                     _serverStarted = await Helper.LoadSceneAsync(() =>
                     {
                         var serverHasStarted = false;
-                        _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer( () =>
-                        {
-                            OnSessionFailedToStart?.Invoke();
-                            ServerTimedOut = true;
-                            SessionStarted = false;
-                            _isSessionStarting = false;
-                            if(serverHasStarted)
-                                CloseNetwork(false);
-                        }));
-                        serverHasStarted = NetworkManager.Singleton.StartHost();
+                        relayCode = CreateRelayAllocation(
+                            _setCustomRelaySize ? _relaySize : gameLobby.LobbyInstance.MaxPlayers, reg, () =>
+                            {
+                                _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer(() =>
+                                {
+                                    OnSessionFailedToStart?.Invoke();
+                                    ServerTimedOut = true;
+                                    SessionStarted = false;
+                                    _isSessionStarting = false;
+                                    if (serverHasStarted)
+                                        CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
+                                }));
+                                serverHasStarted = NetworkManager.Singleton.StartHost();
+                            } ).Result;
                         return serverHasStarted;
                     }, _sceneToLoad);
-                
+
                 }
                 else
                 {
-                    _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer( () =>
-                    {
-                        OnSessionFailedToStart?.Invoke();
-                        ServerTimedOut = true;
-                        SessionStarted = false;
-                        _isSessionStarting = false;
-                        if(_serverStarted)
-                            CloseNetwork(false);
-                    }));
-                    _serverStarted = NetworkManager.Singleton.StartHost();
+                    relayCode = CreateRelayAllocation(
+                        _setCustomRelaySize ? _relaySize : gameLobby.LobbyInstance.MaxPlayers, reg, () =>
+                        { 
+                            var serverHasStarted = false;
+                            _startingHostTimeoutCo = StartCoroutine(_startingHostTimeout.StartTimer(() =>
+                            {
+                                OnSessionFailedToStart?.Invoke();
+                                ServerTimedOut = true;
+                                SessionStarted = false;
+                                _isSessionStarting = false;
+                                if (serverHasStarted)
+                                    CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
+                            }));
+                            serverHasStarted = NetworkManager.Singleton.StartHost();
+                        } ).Result;
                 }
-            
+
                 if (!_serverStarted)
                 {
                     OnGameFailedToStart?.Invoke("Failed To Start Game.");
@@ -188,10 +197,10 @@ namespace MHZ.LobbyScripts
                     SessionStarted = false;
                     return;
                 }
-            
+
                 //OnGameStarted?.Invoke();
             }
-    
+
             catch (RelayServiceException e)
             {
                 OnGameFailedToStart?.Invoke(e.Message);
@@ -215,12 +224,34 @@ namespace MHZ.LobbyScripts
                 _isSessionStarting = false;
             }, () =>
             {
-                CloseNetwork(true, _baseSceneToReturn);
+                CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
                 OnGameFailedToStart?.Invoke("Failed to Start Game.");
                 _isSessionStarting = false;
                 SessionStarted = false;
             });
         }
+
+        private async Task<string> CreateRelayAllocation(int maxPlayers, string reg, Action onRelayAllocated)
+        {
+            try
+            {
+                var relayCode = await GameRelay.Instance.CreateRelay(maxPlayers, reg);
+                onRelayAllocated?.Invoke();
+                return relayCode;
+            }
+            catch
+            {
+                await Helper.LoadSceneAsync(() =>
+                {
+                    OnGameFailedToStart?.Invoke("Failed To Start Game.");
+                    _isSessionStarting = false;
+                    SessionStarted = false;
+                    return false;
+                }, _baseSceneToReturn);
+                throw;
+            }
+        }
+
         #endregion
 
         #region JoinGame
@@ -255,7 +286,7 @@ namespace MHZ.LobbyScripts
                 {
                     OnSessionFailedToJoin?.Invoke();
                     if(_clientStarted)
-                        CloseNetwork(true, _baseSceneToReturn);
+                        CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
                     GameLobby.Instance.LeaveLobby(() =>
                     {
                         SessionStarted = false;
@@ -299,7 +330,7 @@ namespace MHZ.LobbyScripts
                 OnLeavingSession?.Invoke();
                 StopGame(() =>
                 {
-                    CloseNetwork(true, _baseSceneToReturn);
+                    CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
                 });
             }
             else
@@ -311,10 +342,10 @@ namespace MHZ.LobbyScripts
         private void LeaveLobbyAndSession() => GameLobby.Instance.LeaveLobby(
             () =>
             {
-                CloseNetwork(true, _baseSceneToReturn);
+                CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
             }, () =>
             {
-                CloseNetwork(true, _baseSceneToReturn);
+                CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
             });
 
         private void ClientStopped(bool hostStopped)
@@ -413,7 +444,7 @@ namespace MHZ.LobbyScripts
         {
             SessionStarted = false;
             OnSessionFailedToLeave?.Invoke();
-            CloseNetwork(true, _baseSceneToReturn);
+            CloseNetwork(_loadSeparateGameScene, _baseSceneToReturn);
             _isSessionStoping = false;
         }
 

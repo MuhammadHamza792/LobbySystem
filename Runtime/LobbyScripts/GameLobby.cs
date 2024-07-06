@@ -165,7 +165,7 @@ namespace MHZ.LobbyScripts
                 KickedFromLobby = true;
                 OnPlayerKicked?.Invoke();
                 var gameNetworkHandler = GameNetworkHandler.Instance;
-                gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                gameNetworkHandler.CloseNetwork(gameNetworkHandler.LoadSeparateGameScene, gameNetworkHandler.BaseSceneToReturn);
                 //NetworkManager.Singleton.Shutdown();
                 LobbyInstance = null;
                 return;
@@ -223,12 +223,12 @@ namespace MHZ.LobbyScripts
             
             LeaveLobby(() =>
             {
-                gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                gameNetworkHandler.CloseNetwork(gameNetworkHandler.LoadSeparateGameScene, gameNetworkHandler.BaseSceneToReturn);
                 SessionFailedToJoin?.Invoke();
                 _joiningTries = 0;
             }, () =>
             {
-                gameNetworkHandler.CloseNetwork(true, gameNetworkHandler.BaseSceneToReturn);
+                gameNetworkHandler.CloseNetwork(gameNetworkHandler.LoadSeparateGameScene, gameNetworkHandler.BaseSceneToReturn);
                 SessionFailedToJoin?.Invoke();
                 _joiningTries = 0;
             });
@@ -624,12 +624,13 @@ namespace MHZ.LobbyScripts
                 yield break;
             }
 
-            if (!GameNetworkHandler.Instance.SessionStarted)
+            var gameNetworkHandler = GameNetworkHandler.Instance;
+            if (!gameNetworkHandler.SessionStarted)
             {
                 if (NetworkManager.Singleton.IsListening)
                 {
                     Debug.Log("Client disconnecting - User");
-                    GameNetworkHandler.Instance.CloseNetwork(true, GameNetworkHandler.Instance.BaseSceneToReturn);
+                    gameNetworkHandler.CloseNetwork(gameNetworkHandler.LoadSeparateGameScene, gameNetworkHandler.BaseSceneToReturn);
                 }
             }
             
